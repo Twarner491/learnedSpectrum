@@ -6,10 +6,15 @@ Learned Spectrum
 <em>fMRI Learning Stage Classification with Vision Transformers</em>
 </p>
 
-# Abstract
+**Copyright © 2024 Teddy Warner**
+> This work may be reproduced, modified, distributed, performed, and displayed for any purpose,
+> but must acknowledge Teddy Warner. Copyright is retained and must be preserved. 
+> The work is provided as is; no warranty is provided, and users accept all liability.
+
+## Abstract
 This study presents a novel approach to assessing an individual's knowledge level on a subject using functional Magnetic Resonance Imaging (fMRI) data processed by vision transformers. We introduce a state-of-the-art neural network architecture that combines 3D vision transformers, task-specific feature extraction, and temporal modeling to analyze fMRI data from multiple datasets involving classification learning tasks. Our model incorporates multi-task learning to predict knowledgeability scores, brain region activation, cognitive states, and task performance. We employ advanced techniques such as dynamic functional connectivity analysis, reinforcement learning, and explainable AI methods to enhance the model's performance and interpretability. The proposed approach demonstrates significant improvements in accurately classifying an individual's knowledge level compared to traditional methods, offering new insights into the neural correlates of learning and recall processes.
 
-# 1. Introduction
+## 1. Introduction
 
 The ability to objectively assess an individual's knowledge level on a subject has long been a challenge in cognitive neuroscience and education. Traditional methods often rely on behavioral measures or standardized tests, which may not fully capture the underlying neural processes involved in knowledge acquisition and retrieval. Recent advancements in neuroimaging techniques, particularly functional Magnetic Resonance Imaging (fMRI), have opened new avenues for understanding the brain's activity patterns associated with learning and recall.
 
@@ -28,7 +33,7 @@ Our approach integrates several cutting-edge techniques in machine learning and 
 
 By combining these advanced methods, we aim to develop a more accurate and interpretable model for assessing knowledgeability based on neural activity patterns. This research has potential implications for personalized education, cognitive assessment, and our understanding of the neural basis of learning and memory.
 
-# 2. Background
+## 2. Background
 
 ### 2.1 fMRI in Cognitive Neuroscience
 
@@ -89,7 +94,7 @@ This architecture is designed to process 3D fMRI data efficiently, capturing bot
 
 The multi-task design of the model allows it to simultaneously predict multiple related outcomes, potentially leading to more robust and generalizable features. This approach aligns well with the complex nature of brain function, where different aspects of cognition and knowledge are often interrelated.
 
-# 4. Methodology
+## 4. Methodology
 
 ### 4.1 Data Preprocessing
 
@@ -134,7 +139,7 @@ We assess our model's performance using:
 2. Mean Absolute Error (MAE) for brain region activation prediction.
 3. Accuracy and F1-score for cognitive state classification.
 
-# 5. Experimental Setup
+## 5. Experimental Setup
 
 ### 5.1 Datasets
 
@@ -180,7 +185,7 @@ To understand the contribution of different components, we conduct ablation stud
 3. The influence of the number of transformer layers and attention heads
 
 
-# 6. Results
+## 6. Results
 
 In this section, we present the findings from our experiments using the FMRITransformer model on the four OpenNeuro datasets. We evaluate the model's performance in assessing knowledgeability, predicting brain region activation, and classifying cognitive states.
 
@@ -251,7 +256,7 @@ We conducted an error analysis to understand the model's limitations:
 
 [Consider including a confusion matrix for the cognitive state classification task]
 
-# 7. Conclusions
+## 7. Conclusions
 
 In this study, we developed and evaluated a novel approach for assessing an individual's knowledge level using fMRI data processed by vision transformers. Our FMRITransformer model demonstrated promising results in predicting knowledgeability scores, brain region activation, and cognitive states across multiple datasets.
 
