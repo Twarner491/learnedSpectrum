@@ -14,6 +14,7 @@ Learned Spectrum
 ## Abstract
 This study presents a novel approach to assessing an individual's knowledge level on a subject using functional Magnetic Resonance Imaging (fMRI) data processed by vision transformers. We introduce a state-of-the-art neural network architecture that combines 3D vision transformers, task-specific feature extraction, and temporal modeling to analyze fMRI data from multiple datasets involving classification learning tasks. Our model incorporates multi-task learning to predict knowledgeability scores, brain region activation, cognitive states, and task performance. We employ advanced techniques such as dynamic functional connectivity analysis, reinforcement learning, and explainable AI methods to enhance the model's performance and interpretability. The proposed approach demonstrates significant improvements in accurately classifying an individual's knowledge level compared to traditional methods, offering new insights into the neural correlates of learning and recall processes.
 
+## Usage
 
 
 ---
