@@ -14,6 +14,275 @@ Learned Spectrum
 ## Abstract
 This study presents a novel approach to assessing an individual's knowledge level on a subject using functional Magnetic Resonance Imaging (fMRI) data processed by vision transformers. We introduce a state-of-the-art neural network architecture that combines 3D vision transformers, task-specific feature extraction, and temporal modeling to analyze fMRI data from multiple datasets involving classification learning tasks. Our model incorporates multi-task learning to predict knowledgeability scores, brain region activation, cognitive states, and task performance. We employ advanced techniques such as dynamic functional connectivity analysis, reinforcement learning, and explainable AI methods to enhance the model's performance and interpretability. The proposed approach demonstrates significant improvements in accurately classifying an individual's knowledge level compared to traditional methods, offering new insights into the neural correlates of learning and recall processes.
 
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/learnedSpectrum.git
+cd learnedSpectrum
+```
+
+2. Create and activate conda environment:
+```bash
+conda env create -f environment.yml
+conda activate learned-spectrum
+```
+
+3. Install package in development mode:
+```bash
+pip install -e .
+```
+
+3.5. If you want to install with development dependencies:
+```bash
+pip install -e ".[dev]"
+```
+
+## Project Structure
+
+```
+learnedSpectrum/
+├── data/                      # Data directory
+│   ├── raw/                  # Raw fMRI data
+│   ├── processed/            # Preprocessed data
+│   └── results/              # Analysis results
+├── learnedSpectrum/          # Main package
+│   ├── __init__.py
+│   ├── config.py            # Configuration
+│   ├── customFuncs.py       # Utility functions
+│   └── tests/               # Unit tests
+├── notebooks/                # Jupyter notebooks
+│   ├── preprocessing.ipynb
+│   ├── featureExtraction.ipynb
+│   └── modelValidation.ipynb
+└── scripts/                  # Processing scripts
+    ├── dataProcessing.py
+    ├── model.py
+    ├── training.py
+    └── validation.py
+```
+
+## Usage Pipeline
+
+### 1. Data Preprocessing
+
+Run the preprocessing notebook to prepare your data:
+```bash
+jupyter lab notebooks/preprocessing.ipynb
+```
+
+Key steps:
+- Load raw fMRI data
+- Apply motion correction
+- Perform slice timing correction
+- Execute spatial normalization
+- Implement noise reduction
+- Save preprocessed data
+
+Configuration:
+```python
+# config.py
+preprocessing_config = {
+    'motion_correction': True,
+    'slice_timing': True,
+    'spatial_norm': True,
+    'noise_reduction': True
+}
+```
+
+### 2. Feature Extraction and Model Training
+
+Run the feature extraction and training notebook:
+```bash
+jupyter lab notebooks/featureExtraction.ipynb
+```
+
+Steps:
+1. Load preprocessed data
+2. Extract temporal features
+3. Configure model:
+```python
+model_config = {
+    'vit': {
+        'patch_size': (4, 4, 4),
+        'hidden_size': 768,
+        'num_layers': 12
+    }
+}
+```
+
+4. Train model:
+```python
+# Train from command line
+python scripts/training.py --config configs/training.yaml
+
+# Or use training notebook
+jupyter lab notebooks/featureExtraction.ipynb
+```
+
+### 3. Model Validation and Visualization
+
+Run the validation notebook:
+```bash
+jupyter lab notebooks/modelValidation.ipynb
+```
+
+Analysis includes:
+- Performance metrics
+- Attention visualization
+- Feature importance
+- Learning progression
+
+### 4. Saving and Loading Results
+
+Results are automatically saved throughout the pipeline:
+
+```python
+# Save preprocessed data
+save_dir = Path('data/processed/')
+preprocessor.save_results(save_dir)
+
+# Save model checkpoints
+checkpoint_dir = Path('models/checkpoints/')
+trainer.save_checkpoint(checkpoint_dir)
+
+# Save validation results
+results_dir = Path('data/results/')
+validator.save_results(results_dir)
+```
+
+### 5. Testing
+
+Run unit tests to ensure functionality:
+```bash
+# Run all tests
+python -m pytest
+
+# Run specific test file
+python -m pytest learnedSpectrum/tests/test_config.py
+
+# Run with coverage
+coverage run -m pytest
+coverage report
+```
+
+## Visualization Examples
+
+1. Brain attention patterns:
+```python
+from scripts.explainability import AttentionMapper
+
+attention_mapper = AttentionMapper(model)
+attention_mapper.plot_attention_map(attention_maps)
+```
+
+2. Learning progression:
+```python
+from scripts.validation import LearningStageAnalyzer
+
+analyzer = LearningStageAnalyzer(model)
+analyzer.plot_learning_trajectory(predictions)
+```
+
+## Configuration
+
+Configure project settings in `config.py`:
+```python
+config = {
+    'data_dir': 'path/to/data',
+    'preprocessing': {...},
+    'model': {...},
+    'training': {...},
+    'validation': {...}
+}
+```
+
+Or use YAML configuration:
+```yaml
+# config.yaml
+data:
+  root_dir: "data/"
+  preprocessed_dir: "data/processed/"
+
+model:
+  type: "vit3d"
+  patch_size: [4, 4, 4]
+  hidden_size: 768
+```
+
+## Output Structure
+
+Results are organized as follows:
+```
+results/
+├── preprocessing/
+│   ├── quality_metrics.json
+│   └── preprocessing_report.md
+├── training/
+│   ├── checkpoints/
+│   ├── logs/
+│   └── training_metrics.json
+└── validation/
+    ├── attention_maps/
+    ├── feature_importance/
+    └── validation_report.md
+```
+
+## Example Workflow
+
+1. Prepare your data:
+```bash
+# Create necessary directories
+mkdir -p data/{raw,processed,results}
+
+# Place raw fMRI data in data/raw/
+```
+
+2. Run preprocessing:
+```bash
+jupyter lab notebooks/preprocessing.ipynb
+```
+
+3. Train model:
+```bash
+jupyter lab notebooks/featureExtraction.ipynb
+```
+
+4. Validate and visualize:
+```bash
+jupyter lab notebooks/modelValidation.ipynb
+```
+
+5. Review results:
+- Check preprocessing report
+- Monitor training metrics
+- Analyze validation results
+- Examine visualizations
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Add tests for new functionality
+4. Run tests and linting
+5. Submit pull request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Citation
+
+If you use this code in your research, please cite:
+```bibtex
+@software{learnedSpectrum2024,
+  author = {Your Name},
+  title = {LearnedSpectrum: fMRI Learning Stage Classification},
+  year = {2024},
+  url = {https://github.com/yourusername/learnedSpectrum}
+}
+```
+
 ## 1. Introduction
 
 The ability to objectively assess an individual's knowledge level on a subject has long been a challenge in cognitive neuroscience and education. Traditional methods often rely on behavioral measures or standardized tests, which may not fully capture the underlying neural processes involved in knowledge acquisition and retrieval. Recent advancements in neuroimaging techniques, particularly functional Magnetic Resonance Imaging (fMRI), have opened new avenues for understanding the brain's activity patterns associated with learning and recall.
