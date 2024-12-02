@@ -128,7 +128,3 @@ Four blocks of event-related probabilistic classification learning:
 2. Knowlton, B. J., Mangels, J. A., and Squire, L. R. (1996). A neostriatal habit learning system in humans. Science, 273(5280):1399–402.
 
 3. Poldrack, R. A., Clark, J., Paré-Blagoev, E. J., Shohamy, D., Creso Moyano, J., Myers, C., and Gluck, M. A. (2001). Interactive memory systems in the human brain. Nature, 414(6863):546–50.
-Citations:
-[1] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/9534770/23b8b4fb-91ee-4a22-83e9-a630f3fe2d1f/classificationLearningAndStop-Signal.pdf
-[2] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/9534770/bb6cb383-5edb-4a12-ba4e-cd353a15b921/classificationLearning.pdf
-[3] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/9534770/d492a1e3-cee2-41c4-b9a9-5000d8ba726c/classificationLearningAndReversal.pdf
