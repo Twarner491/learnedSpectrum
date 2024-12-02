@@ -11,11 +11,16 @@ Learned Spectrum
 > but must acknowledge Teddy Warner. Copyright is retained and must be preserved. 
 > The work is provided as is; no warranty is provided, and users accept all liability.
 
+I had a bunch of fun taking on this model. I went in intent on focusing on the "medical-tangent" space with a specfic intrest in brain imaging, and wound up studying/utlizing fMRI data. 
+
 ## Abstract
-This study presents a novel approach to assessing an individual's knowledge level on a subject using functional Magnetic Resonance Imaging (fMRI) data processed by vision transformers. We introduce a state-of-the-art neural network architecture that combines 3D vision transformers, task-specific feature extraction, and temporal modeling to analyze fMRI data from multiple datasets involving classification learning tasks. Our model incorporates multi-task learning to predict knowledgeability scores, brain region activation, cognitive states, and task performance. We employ advanced techniques such as dynamic functional connectivity analysis, reinforcement learning, and explainable AI methods to enhance the model's performance and interpretability. The proposed approach demonstrates significant improvements in accurately classifying an individual's knowledge level compared to traditional methods, offering new insights into the neural correlates of learning and recall processes.
+
 
 ## Usage
 
+
+## Acknowledgements 
+A thank you to Talha Rafique and the USC Keck School of Medicine's Can Lab for providing guidance and a theoredical baseline in fMRI while taking on this project.
 
 ---
 - [Watch this repo](https://github.com/Twarner491/learnedSpectrum/subscription)
