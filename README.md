@@ -6,12 +6,12 @@ Learned Spectrum
 <em>fMRI Learning Stage Classification with Vision Transformers</em>
 </p>
 
+I had a bunch of fun taking on this model. I went in intent on focusing on the "medical-tangent" space with a specfic intrest in brain imaging, and wound up studying/utlizing fMRI data. 
+
 **Copyright © 2024 Teddy Warner**
 > This work may be reproduced, modified, distributed, performed, and displayed for any purpose,
 > but must acknowledge Teddy Warner. Copyright is retained and must be preserved. 
 > The work is provided as is; no warranty is provided, and users accept all liability.
-
-I had a bunch of fun taking on this model. I went in intent on focusing on the "medical-tangent" space with a specfic intrest in brain imaging, and wound up studying/utlizing fMRI data. 
 
 ## Abstract
 
