@@ -129,7 +129,7 @@ Four blocks of event-related probabilistic classification learning:
 
 3. Poldrack, R. A., Clark, J., Paré-Blagoev, E. J., Shohamy, D., Creso Moyano, J., Myers, C., and Gluck, M. A. (2001). Interactive memory systems in the human brain. Nature, 414(6863):546–50.
 
-For more detailed information on each dataset, please refer to the original publications and the OpenFMRI project documentation.
+
 
 Citations:
 [1] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/9534770/23b8b4fb-91ee-4a22-83e9-a630f3fe2d1f/classificationLearningAndStop-Signal.pdf
