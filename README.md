@@ -6,12 +6,12 @@ Learned Spectrum
 <em>fMRI Learning Stage Classification with Vision Transformers</em>
 </p>
 
-<center>
+<span align="center">
 
 ![build](https://github.com/buttons/github-buttons/workflows/build/badge.svg)
-![Static Badge](https://img.shields.io/badge/spaces-blue?style=flat&logo=huggingface&label=Hugging%20Face&labelColor=grey&color=blue&link=https%3A%2F%2Fhuggingface.co%2Fspaces%2Ftwarner%2FlearnedSpectrum)
+![hf](https://img.shields.io/badge/spaces-blue?style=plastic&logo=huggingface&logoColor=darkgrey&label=Hugging%20Face&labelColor=grey)
 
-</center>
+</span>
 
 ## Introduction
 
