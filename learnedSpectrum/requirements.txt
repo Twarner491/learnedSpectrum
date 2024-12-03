@@ -13,3 +13,4 @@ einops
 timm
 tqdm
 scipy
+requests

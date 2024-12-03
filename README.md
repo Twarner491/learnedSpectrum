@@ -63,20 +63,22 @@ pip install -e .
 
 ### Data Preparation
 
-1. Create necessary directories:
+1. Create necessary directories and download datasets (automated):
 ```bash
-mkdir -p data/{raw,processed,cleaned}
-mkdir -p models/checkpoints
-mkdir -p visualizations
+python scripts/download_datasets.py
 ```
 
-2. Download the required OpenFMRI datasets:
-   - [ds000002](https://openneuro.org/datasets/ds000002) - Classification Learning
-   - [ds000011](https://openneuro.org/datasets/ds000011) - Mixed-gambles Task
-   - [ds000017](https://openneuro.org/datasets/ds000017) - Classification Learning and Reversal
-   - [ds000052](https://openneuro.org/datasets/ds000052) - Classification Learning and Stop-signal
+This script will:
+- Create required directory structure
+- Download OpenFMRI datasets:
+  - [ds000002](https://openneuro.org/datasets/ds000002) - Classification Learning
+  - [ds000011](https://openneuro.org/datasets/ds000011) - Mixed-gambles Task
+  - [ds000017](https://openneuro.org/datasets/ds000017) - Classification Learning and Reversal
+  - [ds000052](https://openneuro.org/datasets/ds000052) - Classification Learning and Stop-signal
+- Extract datasets to the correct locations
+- Clean up temporary files
 
-3. Extract the downloaded datasets into `data/raw/` following this structure:
+The resulting directory structure will be:
 ```
 data/
 ├── raw/
@@ -86,6 +88,12 @@ data/
 │   └── ds000052/
 ├── processed/
 └── cleaned/
+```
+
+Options:
+```bash
+# Force redownload of datasets (if needed)
+python scripts/download_datasets.py --force
 ```
 
 ### Running the Analysis

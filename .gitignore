@@ -80,3 +80,6 @@ htmlcov/
 .coverage.*
 coverage.xml
 *.cover
+
+# Package specific
+learnedSpectrum.egg-info/
