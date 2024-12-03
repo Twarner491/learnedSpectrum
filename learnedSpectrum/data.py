@@ -16,180 +16,188 @@ import pywt
 from scipy.ndimage import zoom
 from nilearn import image
 from functools import lru_cache
+import shutil
+import gzip
+
 
 logger = logging.getLogger(__name__)
 
 class BIDSManager:
-    """Handles dataset organization according to BIDS format"""
-    
     def __init__(self, data_config):
         self.config = data_config
-        self.raw_dir = Path("data/raw")
-        self.processed_dir = Path("data/processed")
+        self.raw_dir = Path("../data/raw").absolute()
+        self.processed_dir = Path("../data/processed").absolute()
+        self._ensure_dirs()
+    
+    def _ensure_dirs(self):
         self.raw_dir.mkdir(parents=True, exist_ok=True)
         self.processed_dir.mkdir(parents=True, exist_ok=True)
 
+    def _find_dataset_root(self, dataset_id: str) -> Path:
+        # handle openfmri's *delightful* inconsistency w/ naming
+        patterns = [
+            f"{dataset_id}",  # base
+            f"{dataset_id}_R*.0.*",  # versioned
+            f"ds{dataset_id.split('ds')[1]}_R*.0.*",  # alt format
+            "*/*bold.nii.gz"  # desperate recursion
+        ]
+        
+        for pattern in patterns:
+            candidates = list(self.raw_dir.rglob(pattern))
+            if candidates:
+                # take deepest match w/ func dir
+                valid = [p for p in candidates if "func" in str(p.parent)]
+                if valid:
+                    return valid[0].parent.parent  # climb back to subject
+                return candidates[0]  # fallback to first
+                
+        raise FileNotFoundError(f"dataset {dataset_id} not found in expected locations")
+
     def download_dataset(self, dataset_id: str) -> Path:
-        """Downloads dataset if not already present"""
-        target_dir = self.raw_dir / dataset_id
-        if target_dir.exists():
-            logger.info(f"Dataset {dataset_id} already downloaded")
-            return target_dir
-            
-        url = self.config.DATASET_URLS[dataset_id]
-        zip_path = self.raw_dir / f"{dataset_id}.zip"
-        
-        logger.info(f"Downloading {dataset_id}...")
-        urllib.request.urlretrieve(url, zip_path)
-        
-        logger.info(f"Extracting {dataset_id}...")
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(target_dir)
-            
-        zip_path.unlink()  # Remove zip file after extraction
-        return target_dir
+        """handle bids dataset location w/ version chaos"""
+        try:
+            root = self._find_dataset_root(dataset_id)
+            logging.info(f"found dataset root: {root}")
+            return root
+        except Exception as e:
+            logging.error(f"failed to locate {dataset_id}: {e}")
+            raise
 
 class FMRIDataset(Dataset):
-    """Dataset class for fMRI volumes"""
-    
-    def __init__(self, 
-                 data_paths: List[Path],
-                 labels: List[int],
-                 config,
-                 transform=None,
-                 cache_dir: Optional[Path] = None):
+    def __init__(self, data_paths, labels, config, transform=None, cache_dir=None):
         self.data_paths = data_paths
         self.labels = labels
         self.config = config
         self.transform = transform
-        self.cache_dir = cache_dir
+        self.cache_dir = Path(cache_dir) if cache_dir else None
         
         if self.cache_dir:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-    @lru_cache(maxsize=128)
-    def _load_and_preprocess(self, idx: int) -> np.ndarray:
-        """Load and preprocess a single volume with caching"""
-        path = self.data_paths[idx]
+    def _load_and_preprocess(self, idx):
+        path = Path(self.data_paths[idx])
         
-        # Check cache first
         if self.cache_dir:
             cache_path = self.cache_dir / f"{path.stem}.npy"
             if cache_path.exists():
-                return np.load(cache_path)
+                try:
+                    return np.load(str(cache_path))
+                except:
+                    pass
         
-        # Load and preprocess
-        img = nib.load(path)
-        data = img.get_fdata()
-        
-        # Resize to target shape
-        if data.shape != self.config.TARGET_SHAPE:
-            zoom_factors = [t / c for t, c in zip(self.config.TARGET_SHAPE, data.shape)]
-            data = zoom(data, zoom_factors)
-        
-        # Apply wavelet transform if configured
-        if self.config.USE_WAVELET:
-            coeffs = pywt.wavedec3(
-                data, 
-                wavelet=self.config.WAVELET_NAME,
-                level=self.config.DECOMPOSITION_LEVEL
-            )
-            data = np.stack([c[0] for c in coeffs], axis=0)
-        
-        # Normalize
-        if self.config.NORMALIZE:
-            data = (data - data.mean()) / (data.std() + 1e-6)
-        
-        # Cache result
-        if self.cache_dir:
-            np.save(cache_path, data)
+        try:
+            # robust loading w/ error handling
+            img = nib.load(str(path))
+            data = img.get_fdata()
             
-        return data
+            if data.ndim > 3:
+                data = np.squeeze(data)  # remove singleton dims
+            
+            if data.shape != self.config.TARGET_SHAPE:
+                zoom_factors = [t / c for t, c in zip(self.config.TARGET_SHAPE, data.shape)]
+                data = zoom(data, zoom_factors, order=1)  # linear interp
+            
+            if self.config.NORMALIZE:
+                data = (data - np.mean(data)) / (np.std(data) + 1e-6)
+            
+            if self.cache_dir:
+                np.save(str(cache_path), data)
+            
+            return data
+            
+        except Exception as e:
+            print(f"error loading {path}: {str(e)}")
+            # fallback: return zero array of correct shape
+            return np.zeros(self.config.TARGET_SHAPE)
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.data_paths)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
+    def __getitem__(self, idx):
         data = self._load_and_preprocess(idx)
         data = torch.from_numpy(data).float()
         
         if self.transform:
             data = self.transform(data)
-            
+        
         return data, self.labels[idx]
 
 class DatasetManager:
-    """Manages dataset loading, splitting, and dataloader creation"""
-    
     def __init__(self, config, data_config):
-        self.config = config
-        self.data_config = data_config
+        self.config = config  # main config
+        self.data_config = data_config  # crucial for urls/mapping
         self.bids_manager = BIDSManager(data_config)
 
-    def prepare_datasets(self) -> Tuple[FMRIDataset, FMRIDataset, FMRIDataset]:
-        """Prepare train, validation and test datasets"""
-        # Download and organize all datasets
-        all_paths = []
-        all_labels = []
+    def _collect_dataset_samples(self, root_dir: Path) -> Tuple[List[Path], List[int]]:
+        paths, labels = [], []
+        try:
+            for func_dir in root_dir.rglob("func"):
+                for nii_file in func_dir.glob("*bold.nii.gz"):
+                    try:
+                        img = nib.load(str(nii_file))
+                        _ = img.header
+                        dataset_id = next(
+                            (ds for ds in self.data_config.DATASET_URLS.keys()  # <-- fixed config access
+                             if ds.split("ds")[1].lstrip("0") in str(nii_file)),  # handle ds002 vs ds000002
+                            None
+                        )
+                        if dataset_id:
+                            stage_map = self.data_config.DATASET_URLS[dataset_id]['stage_map']
+                            label = int(stage_map(nii_file) * (self.config.NUM_CLASSES - 1))
+                            paths.append(nii_file)
+                            labels.append(label)
+                            logging.debug(f"added {nii_file} (label={label})")
+                    except Exception as e:
+                        logging.warning(f"skipped {nii_file}: {e}")
+        except Exception as e:
+            logging.error(f"scan failed {root_dir}: {e}")
+            
+        if not paths:
+            raise ValueError(f"no valid volumes in {root_dir}")
+            
+        return paths, labels
+    
+    def _split_datasets(self, all_paths: List[Path], all_labels: List[int]):
+        """hochbergian train/val/test split"""
+        n = len(all_paths)
+        indices = np.random.permutation(n)
         
-        for dataset_id in self.data_config.DATASET_URLS.keys():
-            dataset_dir = self.bids_manager.download_dataset(dataset_id)
-            paths, labels = self._collect_dataset_samples(dataset_dir)
-            all_paths.extend(paths)
-            all_labels.extend(labels)
+        train_idx = indices[:int(n * self.data_config.TRAIN_SPLIT)]
+        val_idx = indices[int(n * self.data_config.TRAIN_SPLIT):
+                        int(n * (self.data_config.TRAIN_SPLIT + self.data_config.VAL_SPLIT))]
+        test_idx = indices[int(n * (self.data_config.TRAIN_SPLIT + self.data_config.VAL_SPLIT)):]
         
-        # Split data
-        indices = np.random.permutation(len(all_paths))
-        train_size = int(len(indices) * self.data_config.TRAIN_SPLIT)
-        val_size = int(len(indices) * self.data_config.VAL_SPLIT)
-        
-        train_idx = indices[:train_size]
-        val_idx = indices[train_size:train_size + val_size]
-        test_idx = indices[train_size + val_size:]
-        
-        # Create datasets
+        # instantiate w/ correct config
         cache_dir = Path(self.data_config.CACHE_DIR) if self.data_config.USE_CACHE else None
         
-        train_dataset = FMRIDataset(
-            [all_paths[i] for i in train_idx],
-            [all_labels[i] for i in train_idx],
-            self.data_config,
-            cache_dir=cache_dir
+        splits = (
+            [FMRIDataset([all_paths[i] for i in idx], 
+                        [all_labels[i] for i in idx],
+                        self.data_config,
+                        cache_dir=cache_dir)
+            for idx in (train_idx, val_idx, test_idx)]
         )
         
-        val_dataset = FMRIDataset(
-            [all_paths[i] for i in val_idx],
-            [all_labels[i] for i in val_idx],
-            self.data_config,
-            cache_dir=cache_dir
-        )
-        
-        test_dataset = FMRIDataset(
-            [all_paths[i] for i in test_idx],
-            [all_labels[i] for i in test_idx],
-            self.data_config,
-            cache_dir=cache_dir
-        )
-        
-        return train_dataset, val_dataset, test_dataset
+        logging.info(f"splits: train={len(splits[0])}, val={len(splits[1])}, test={len(splits[2])}")
+        return splits
 
-    def _collect_dataset_samples(self, dataset_dir: Path) -> Tuple[List[Path], List[int]]:
-        """Collect all valid samples and their labels from a dataset"""
-        paths = []
-        labels = []
+    def prepare_datasets(self):
+        all_paths, all_labels = [], []
         
-        # Implementation depends on specific BIDS structure
-        # This is a simplified version
-        for root, _, files in os.walk(dataset_dir):
-            for file in files:
-                if file.endswith('_bold.nii.gz'):
-                    paths.append(Path(root) / file)
-                    # Extract label from filename or metadata
-                    # This is placeholder logic
-                    label = len(labels) % self.config.NUM_CLASSES
-                    labels.append(label)
-                    
-        return paths, labels
+        for dataset_id in self.data_config.DATASET_URLS.keys():
+            try:
+                root = self.bids_manager.download_dataset(dataset_id)
+                paths, labels = self._collect_dataset_samples(root)
+                all_paths.extend(paths)
+                all_labels.extend(labels)
+            except Exception as e:
+                logging.error(f"dataset {dataset_id} failed: {e}")
+                continue
+                
+        if not all_paths:
+            raise ValueError("no valid datasets found")
+            
+        return self._split_datasets(all_paths, all_labels)
 
 def create_dataloaders(train_dataset: FMRIDataset,
                       val_dataset: FMRIDataset,

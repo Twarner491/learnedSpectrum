@@ -42,7 +42,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "learnedspectrum=learnedSpectrum.scripts.train:main",
+            "learnedspectrum=learnedSpectrum.train:main",
         ],
     },
     include_package_data=True,

@@ -11,6 +11,12 @@ from .data import (
     BIDSManager,
     create_dataloaders
 )
+from .train import (
+    VisionTransformerModel,
+    train_one_epoch,
+    evaluate
+)
+from .visualization import VisualizationManager
 from .utils import (
     print_gpu_memory,
     get_optimizer,
@@ -23,9 +29,13 @@ __all__ = [
     'Config',
     'DataConfig',
     'DatasetManager',
-    'FMRIDataset', 
+    'FMRIDataset',
     'BIDSManager',
     'create_dataloaders',
+    'VisionTransformerModel',
+    'train_one_epoch',
+    'evaluate',
+    'VisualizationManager',
     'print_gpu_memory',
     'get_optimizer',
     'verify_model_devices',

@@ -27,20 +27,30 @@ logger = logging.getLogger(__name__)
 # Dataset information
 DATASETS = {
     'ds000002': {
-        'url': 'https://openneuro.org/crn/datasets/ds000002/snapshots/00001/files',
-        'description': 'Classification Learning'
+        'url': 'https://s3.amazonaws.com/openneuro/ds000002/ds000002_R2.0.5/compressed/ds000002_R2.0.5_raw.zip',
+        'description': 'Classification Learning',
+        'tr': 2.0,
+        'stage_map': lambda f: 0.25 if 'run-2' in str(f) else 0.0  # prob learning
     },
     'ds000011': {
-        'url': 'https://openneuro.org/crn/datasets/ds000011/snapshots/00001/files',
-        'description': 'Mixed-gambles Task'
+        'url': 'https://s3.amazonaws.com/openneuro/ds000011/ds000011_R2.0.1/compressed/ds000011_R2.0.1_raw.zip',
+        'description': 'Mixed-gambles Task',
+        'tr': 1.5,
+        'stage_map': lambda f: 0.5 if 'run-2' in str(f) else 0.25  # det learning
     },
     'ds000017': {
-        'url': 'https://openneuro.org/crn/datasets/ds000017/snapshots/00001/files',
-        'description': 'Classification Learning and Reversal'
+        'url': 'https://s3.amazonaws.com/openneuro/ds000017/ds000017_R2.0.1/compressed/ds000017_R2.0.1.zip',
+        'description': 'Classification Learning and Reversal',
+        'tr': 2.5,
+        'stage_map': lambda f: 0.75 if 'run-2' in str(f) else 0.5  # reversal
     },
     'ds000052': {
-        'url': 'https://openneuro.org/crn/datasets/ds000052/snapshots/00001/files',
-        'description': 'Classification Learning and Stop-signal'
+        'url': 'https://s3.amazonaws.com/openneuro/ds000052/ds000052_R2.0.0/compressed/ds052_R2.0.0_01-14.tgz',
+        'description': 'Classification Learning and Stop-signal',
+        'tr': 2.0,
+        'stage_map': lambda f: 1.0 if ('reversal' in str(f) and 'run-2' in str(f)) else
+                              0.67 if ('reversal' in str(f)) else
+                              0.33 if 'run-2' in str(f) else 0.0  # full spectrum
     }
 }
 
@@ -49,6 +59,7 @@ def download_file(url: str, destination: Path, chunk_size: int = 8192) -> None:
     Download a file with progress bar
     """
     response = requests.get(url, stream=True)
+    response.raise_for_status()
     total_size = int(response.headers.get('content-length', 0))
 
     with open(destination, 'wb') as f, tqdm(
@@ -64,16 +75,33 @@ def download_file(url: str, destination: Path, chunk_size: int = 8192) -> None:
 
 def extract_archive(archive_path: Path, extract_path: Path) -> None:
     """
-    Extract zip or tar.gz archive
+    Extract zip or tar.gz/tgz archive
     """
     logger.info(f"Extracting {archive_path} to {extract_path}")
+    
+    # Create extraction directory if it doesn't exist
+    extract_path.mkdir(parents=True, exist_ok=True)
     
     if archive_path.suffix == '.zip':
         with zipfile.ZipFile(archive_path, 'r') as zip_ref:
             zip_ref.extractall(extract_path)
-    elif archive_path.suffix == '.gz' and archive_path.suffixes[-2:] == ['.tar', '.gz']:
+    elif archive_path.suffix in ['.gz', '.tgz'] or archive_path.name.endswith('.tar.gz'):
         with tarfile.open(archive_path, 'r:gz') as tar_ref:
-            tar_ref.extractall(extract_path)
+            def is_within_directory(directory, target):
+                abs_directory = os.path.abspath(directory)
+                abs_target = os.path.abspath(target)
+                prefix = os.path.commonprefix([abs_directory, abs_target])
+                return prefix == abs_directory
+
+            def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+                for member in tar.getmembers():
+                    member_path = os.path.join(path, member.name)
+                    if not is_within_directory(path, member_path):
+                        raise Exception("Attempted path traversal in tar file")
+                
+                tar.extractall(path, members, numeric_owner=numeric_owner)
+            
+            safe_extract(tar_ref, str(extract_path))
     else:
         raise ValueError(f"Unsupported archive format: {archive_path.suffix}")
 
@@ -91,11 +119,25 @@ def setup_data_directories() -> Path:
 
     return raw_dir
 
+def get_file_extension(url: str) -> str:
+    """
+    Get the file extension from the URL
+    """
+    if url.endswith('.zip'):
+        return '.zip'
+    elif url.endswith('.tgz'):
+        return '.tgz'
+    elif url.endswith('.tar.gz'):
+        return '.tar.gz'
+    else:
+        raise ValueError(f"Unsupported file format in URL: {url}")
+
 def download_datasets(force_download: bool = False) -> None:
     """
     Download and extract all required datasets
     """
     raw_dir = setup_data_directories()
+    success = True
 
     for dataset_id, info in DATASETS.items():
         dataset_dir = raw_dir / dataset_id
@@ -111,8 +153,10 @@ def download_datasets(force_download: bool = False) -> None:
         temp_dir.mkdir(exist_ok=True)
         
         try:
-            # Download archive
-            archive_path = temp_dir / f"{dataset_id}.zip"
+            # Get correct file extension from URL
+            file_ext = get_file_extension(info['url'])
+            # Download archive with correct extension
+            archive_path = temp_dir / f"{dataset_id}{file_ext}"
             download_file(info['url'], archive_path)
             
             # Extract to raw directory
@@ -121,6 +165,7 @@ def download_datasets(force_download: bool = False) -> None:
             logger.info(f"Successfully downloaded and extracted {dataset_id}")
             
         except Exception as e:
+            success = False
             logger.error(f"Error processing {dataset_id}: {str(e)}")
             if dataset_dir.exists():
                 shutil.rmtree(dataset_dir)
@@ -129,6 +174,12 @@ def download_datasets(force_download: bool = False) -> None:
             # Cleanup temporary files
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
+    
+    if success:
+        logger.info("All datasets downloaded successfully")
+    else:
+        logger.error("Some datasets failed to download. Please check the errors above.")
+        sys.exit(1)
 
 def main():
     """

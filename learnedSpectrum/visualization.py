@@ -69,36 +69,34 @@ class VisualizationManager:
             plt.close()
         else:
             plt.show()
+            
+    def plot_training_history(self, history, save_name):
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+        
+        ax1.plot(history['train_loss'], label='train')
+        ax1.plot(history['val_loss'], label='val')
+        ax1.set_title('loss')
+        ax1.legend()
+        
+        ax2.plot(history['train_acc'], label='train')
+        ax2.plot(history['val_acc'], label='val')
+        ax2.set_title('accuracy')
+        ax2.legend()
+        
+        plt.savefig(self.save_dir / f"{save_name}.png")
+        plt.close()
 
-    def plot_training_history(self,
-                            history: Dict[str, List[float]],
-                            save_name: Optional[str] = None):
-        """Plot training metrics history"""
-        plt.figure(figsize=(12, 4))
+    def log_to_wandb(self, metrics, step):
+        """wandb metric dump"""
+        wandb.log(metrics, step=step)
         
-        plt.subplot(1, 2, 1)
-        plt.plot(history['train_loss'], label='Train')
-        plt.plot(history['val_loss'], label='Validation')
-        plt.title('Loss History')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.legend()
-        
-        plt.subplot(1, 2, 2)
-        plt.plot(history['train_acc'], label='Train')
-        plt.plot(history['val_acc'], label='Validation')
-        plt.title('Accuracy History')
-        plt.xlabel('Epoch')
-        plt.ylabel('Accuracy')
-        plt.legend()
-        
-        plt.tight_layout()
-        
-        if save_name and self.save_dir:
-            plt.savefig(self.save_dir / f"{save_name}.png")
-            plt.close()
-        else:
-            plt.show()
+        if 'train_metrics' in metrics:
+            # flatten nested dicts
+            for k, v in metrics['train_metrics'].items():
+                wandb.log({f'train_{k}': v}, step=step)
+        if 'val_metrics' in metrics:
+            for k, v in metrics['val_metrics'].items():
+                wandb.log({f'val_{k}': v}, step=step)
 
     def plot_confusion_matrix(self,
                             y_true: np.ndarray,
@@ -119,61 +117,3 @@ class VisualizationManager:
             plt.close()
         else:
             plt.show()
-
-    def plot_roc_curves(self,
-                       y_true: np.ndarray,
-                       y_scores: np.ndarray,
-                       classes: List[str],
-                       save_name: Optional[str] = None):
-        """Plot ROC curves for each class"""
-        plt.figure(figsize=(10, 8))
-        
-        for i in range(len(classes)):
-            fpr, tpr, _ = roc_curve(y_true == i, y_scores[:, i])
-            roc_auc = auc(fpr, tpr)
-            plt.plot(fpr, tpr, label=f'{classes[i]} (AUC = {roc_auc:.2f})')
-        
-        plt.plot([0, 1], [0, 1], 'k--')
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('ROC Curves')
-        plt.legend(loc="lower right")
-        
-        if save_name and self.save_dir:
-            plt.savefig(self.save_dir / f"{save_name}.png")
-            plt.close()
-        else:
-            plt.show()
-
-    def log_to_wandb(self,
-                    metrics: Dict[str, float],
-                    step: int,
-                    prefix: str = ""):
-        """Log metrics to Weights & Biases"""
-        if wandb.run is not None:
-            wandb.log({f"{prefix}{k}": v for k, v in metrics.items()}, step=step)
-
-    def plot_brain_activation(self,
-                            volume: np.ndarray,
-                            background_img: Optional[str] = None,
-                            save_name: Optional[str] = None):
-        """Plot brain activation using nilearn"""
-        if background_img is None:
-            background_img = 'MNI152'
-            
-        display = plotting.plot_stat_map(
-            volume,
-            bg_img=background_img,
-            display_mode='ortho',
-            cut_coords=(0, 0, 0),
-            colorbar=True,
-            title='Brain Activation'
-        )
-        
-        if save_name and self.save_dir:
-            display.savefig(self.save_dir / f"{save_name}.png")
-            plt.close()
-        else:
-            plt.show() 

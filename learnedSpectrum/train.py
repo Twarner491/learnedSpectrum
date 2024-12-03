@@ -5,6 +5,8 @@ Training script for fMRI Learning Stage Classification with Vision Transformers
 import logging
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from transformers import ViTModel, ViTConfig
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
 from torch.cuda.amp import GradScaler, autocast
@@ -32,45 +34,55 @@ from transformers import ViTModel, ViTConfig
 logger = logging.getLogger(__name__)
 
 class VisionTransformerModel(nn.Module):
-    def __init__(self, config: Config):
-        super(VisionTransformerModel, self).__init__()
+    def __init__(self, config):
+        super().__init__()
+        # Remove global AMP override
         vit_config = ViTConfig(
-            image_size=config.VOLUME_SIZE[0],
+            image_size=(config.VOLUME_SIZE[0], config.VOLUME_SIZE[0]),
             patch_size=config.PATCH_SIZE,
             num_channels=config.VOLUME_SIZE[2],
             hidden_size=config.EMBED_DIM,
             num_hidden_layers=config.DEPTH,
             num_attention_heads=config.NUM_HEADS,
-            intermediate_size=int(config.EMBED_DIM * config.MLP_RATIO),
+            intermediate_size=4 * config.EMBED_DIM,
             hidden_dropout_prob=config.DROP_RATE,
             attention_probs_dropout_prob=config.ATTN_DROP_RATE,
             num_labels=config.NUM_CLASSES
         )
         self.vit = ViTModel(vit_config)
         self.classifier = nn.Linear(config.EMBED_DIM, config.NUM_CLASSES)
+        
+        # Move model to GPU if available
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.to(self.device)
 
     def forward(self, x):
+        # Ensure input is on same device as model
+        x = x.to(self.device)
+        x = x.permute(0, 3, 1, 2)
+        
+        # Let autocast handle dtype conversion
         outputs = self.vit(pixel_values=x)
-        pooled_output = outputs.last_hidden_state[:, 0]
-        logits = self.classifier(pooled_output)
-        return logits
-
+        return self.classifier(outputs.last_hidden_state[:, 0])
+    
 def train_one_epoch(model, dataloader, optimizer, scheduler, scaler, config):
     model.train()
     total_loss = 0.0
-    for batch in tqdm(dataloader, desc="Training", leave=False):
+    
+    for batch in dataloader:
         inputs, labels = batch
-        inputs, labels = inputs.to(config.device), labels.to(config.device)
-
-        with autocast(enabled=config.USE_AMP):
+        inputs = inputs.to(config.device)
+        labels = labels.to(config.device)
+        
+        with torch.amp.autocast('cuda' if torch.cuda.is_available() else 'cpu', 
+                              enabled=config.USE_AMP):
             outputs = model(inputs)
-            loss = nn.CrossEntropyLoss()(outputs, labels)
-
-        scaler.scale(loss).backward()
+            loss = torch.nn.CrossEntropyLoss()(outputs, labels)
 
         if config.GRADIENT_ACCUMULATION_STEPS > 1:
             loss = loss / config.GRADIENT_ACCUMULATION_STEPS
 
+        scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
         optimizer.zero_grad()
@@ -80,30 +92,25 @@ def train_one_epoch(model, dataloader, optimizer, scheduler, scaler, config):
 
     return total_loss / len(dataloader)
 
+@torch.no_grad()  # critical for inference
 def evaluate(model, dataloader, config):
     model.eval()
     total_loss = 0.0
-    all_outputs = []
-    all_labels = []
-
-    with torch.no_grad():
-        for batch in tqdm(dataloader, desc="Evaluating", leave=False):
-            inputs, labels = batch
-            inputs, labels = inputs.to(config.device), labels.to(config.device)
-
-            with autocast(enabled=config.USE_AMP):
-                outputs = model(inputs)
-                loss = nn.CrossEntropyLoss()(outputs, labels)
-
-            total_loss += loss.item()
-            all_outputs.append(outputs)
-            all_labels.append(labels)
-
-    all_outputs = torch.cat(all_outputs)
-    all_labels = torch.cat(all_labels)
-    metrics = calculate_metrics(all_outputs, all_labels)
-
-    return total_loss / len(dataloader), metrics
+    outputs, labels = [], []
+    
+    for batch in dataloader:
+        x, y = [b.to(config.device) for b in batch]
+        with torch.amp.autocast('cuda' if torch.cuda.is_available() else 'cpu'):
+            out = model(x)
+            loss = torch.nn.CrossEntropyLoss()(out, y)
+        total_loss += loss.item()
+        outputs.append(out)
+        labels.append(y)
+    
+    outputs = torch.cat(outputs)
+    labels = torch.cat(labels)
+    
+    return total_loss / len(dataloader), calculate_metrics(outputs, labels)
 
 def main():
     logging.basicConfig(level=logging.INFO)
@@ -115,6 +122,9 @@ def main():
     dataset_manager = DatasetManager(config, data_config)
     train_dataset, val_dataset, test_dataset = dataset_manager.prepare_datasets()
     train_loader, val_loader, test_loader = create_dataloaders(train_dataset, val_dataset, test_dataset, config)
+
+    criterion = nn.CrossEntropyLoss(label_smoothing=config.LABEL_SMOOTHING)
+    torch.nn.utils.clip_grad_norm_(model.parameters(), config.GRADIENT_CLIP)
 
     model = VisionTransformerModel(config).to(config.device)
     verify_model_devices(model)
@@ -141,10 +151,8 @@ def main():
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             save_checkpoint(model, optimizer, epoch, val_loss, config, "best_model.pth")
-
     logger.info("Training complete. Evaluating on test set...")
     test_loss, test_metrics = evaluate(model, test_loader, config)
     logger.info(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_metrics['accuracy']:.4f}, Test AUC: {test_metrics['auc']:.4f}")
-
 if __name__ == "__main__":
-    main() 
+    main()
