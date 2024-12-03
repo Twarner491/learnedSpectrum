@@ -39,18 +39,14 @@ This work explores the potential of modern deep learning architectures in unders
 
 ### Prerequisites
 - Python 3.8+
-- PyTorch 2.0+
-- nibabel
-- nilearn
-- scikit-learn
-- transformers
-- wandb (for experiment tracking)
+- CUDA-capable GPU (recommended)
+- Git
 
 ### Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/learnedSpectrum.git
+git clone https://github.com/Twarner491/learnedSpectrum.git
 cd learnedSpectrum
 ```
 
@@ -60,42 +56,133 @@ python -m venv venv
 source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 ```
 
-3. Install the package and dependencies:
+3. Install the package in editable mode with all dependencies:
 ```bash
 pip install -e .
 ```
 
-### Running the Code
+### Data Preparation
 
-#### Option 1: Using Google Colab (Recommended)
-1. Open the notebook in Google Colab by clicking [this link](https://colab.research.google.com/github/yourusername/learnedSpectrum/blob/main/notebooks/learnedSpectrum.ipynb)
-2. Follow the step-by-step instructions in the notebook
-3. Make sure to enable GPU runtime for optimal performance
-
-#### Option 2: Local Execution
-1. Download the required datasets from OpenFMRI:
-   - ds000002
-   - ds000011
-   - ds000017
-   - ds000052
-
-2. Place the downloaded datasets in the `data/` directory
-
-3. Run the preprocessing pipeline:
+1. Create necessary directories:
 ```bash
-python -m learnedSpectrum.preprocess --data_dir data/ --output_dir processed/
+mkdir -p data/{raw,processed,cleaned}
+mkdir -p models/checkpoints
+mkdir -p visualizations
 ```
 
-4. Train the model:
-```bash
-python -m learnedSpectrum.train --data_dir processed/ --output_dir models/
+2. Download the required OpenFMRI datasets:
+   - [ds000002](https://openneuro.org/datasets/ds000002) - Classification Learning
+   - [ds000011](https://openneuro.org/datasets/ds000011) - Mixed-gambles Task
+   - [ds000017](https://openneuro.org/datasets/ds000017) - Classification Learning and Reversal
+   - [ds000052](https://openneuro.org/datasets/ds000052) - Classification Learning and Stop-signal
+
+3. Extract the downloaded datasets into `data/raw/` following this structure:
+```
+data/
+├── raw/
+│   ├── ds000002/
+│   ├── ds000011/
+│   ├── ds000017/
+│   └── ds000052/
+├── processed/
+└── cleaned/
 ```
 
-5. Evaluate the model:
+### Running the Analysis
+
+#### Option 1: Using Jupyter Notebook (Recommended)
+
+1. Start Jupyter:
 ```bash
-python -m learnedSpectrum.evaluate --model_path models/best_model.pth --data_dir processed/
+jupyter notebook
 ```
 
+2. Navigate to `notebooks/learnedSpectrum.ipynb`
+
+3. The notebook is organized into clear sections:
+   - Setup and Imports
+   - Configuration
+   - Data Preparation
+   - Model Training
+   - Evaluation
+   - Results Visualization
+
+4. Execute cells sequentially to:
+   - Process the fMRI data
+   - Train the Vision Transformer model
+   - Visualize results and attention maps
+   - Generate performance metrics
+
+#### Option 2: Command Line Interface
+
+1. Process the datasets:
+```bash
+python scripts/data_processor.py --input_dir data/raw
+```
+
+2. Train the model:
+```bash
+python scripts/train.py \
+    --config configs/default.yaml \
+    --output_dir models/checkpoints \
+    --wandb  # Optional: Enable Weights & Biases logging
+```
+
+3. Evaluate and visualize results:
+```bash
+python scripts/visualization.py \
+    --model_path models/checkpoints/best_model.pth \
+    --output_dir visualizations
+```
+
+### Experiment Tracking
+
+1. (Optional) Set up Weights & Biases:
+```bash
+wandb login
+```
+
+2. View training progress:
+   - Real-time metrics at [wandb.ai](https://wandb.ai)
+   - Local visualizations in `visualizations/`
+   - Training logs in `models/checkpoints/`
+
+### Output Files
+
+After running the analysis, you'll find:
+- Processed data: `data/processed/`
+- Model checkpoints: `models/checkpoints/`
+- Visualizations:
+  - Brain slices: `visualizations/brain_slices/`
+  - Attention maps: `visualizations/attention_maps/`
+  - Performance plots: `visualizations/metrics/`
+  - ROC curves: `visualizations/roc_curves.png`
+  - Confusion matrix: `visualizations/confusion_matrix.png`
+
+### Troubleshooting
+
+1. CUDA/GPU Issues:
+```python
+# Check GPU availability
+import torch
+print(f"CUDA available: {torch.cuda.is_available()}")
+print(f"GPU device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'None'}")
+```
+
+2. Memory Issues:
+   - Reduce `BATCH_SIZE` in config
+   - Enable gradient accumulation
+   - Use mixed precision training
+
+3. Data Loading Issues:
+   - Verify dataset structure
+   - Check preprocessing logs in `data/processed/logs/`
+   - Ensure sufficient disk space
+
+For additional help, please [create an issue](https://github.com/Twarner491/learnedSpectrum/issues/new) with:
+- Error message
+- System specifications
+- Steps to reproduce
 
 ## Acknowledgements 
 A thank you to Talha Rafique and the USC Institute for Technology and Medical Systems's Khan Lab for providing guidance on this project.
