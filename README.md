@@ -6,7 +6,18 @@ Learned Spectrum
 <em>fMRI Learning Stage Classification with Vision Transformers</em>
 </p>
 
-I had a bunch of fun taking on this model. I went in intent on focusing on the "medical-tangent" space with a specfic intrest in brain imaging, and wound up studying/utlizing fMRI data. 
+<center>
+
+![build](https://github.com/buttons/github-buttons/workflows/build/badge.svg)
+![Static Badge](https://img.shields.io/badge/spaces-blue?style=flat&logo=huggingface&label=Hugging%20Face&labelColor=grey&color=blue&link=https%3A%2F%2Fhuggingface.co%2Fspaces%2Ftwarner%2FlearnedSpectrum)
+
+</center>
+
+## Introduction
+
+I came into this project intent on focusing on the "medical-tangent" space with a specific interest in brain imaging, and wound up studying/utilizing fMRI data. My naivety with fMRI sure got the best of me here, as boy was the data a pain in the ass to wrap my head around, yet I had an absolute blast doing so.
+
+As a means of establishing a theoretical baseline regarding fMRI and neuroimaging, I interviewed Talha Rafique, a researcher at USC Institute for Technology and Medical Systems's Khan Lab.
 
 **Copyright © 2024 Teddy Warner**
 > This work may be reproduced, modified, distributed, performed, and displayed for any purpose,
@@ -20,7 +31,7 @@ I had a bunch of fun taking on this model. I went in intent on focusing on the "
 
 
 ## Acknowledgements 
-A thank you to Talha Rafique and the USC Keck School of Medicine's Can Lab for providing guidance and a theoredical baseline in fMRI while taking on this project.
+A thank you to Talha Rafique and the USC Institute for Technology and Medical Systems's Khan Lab for providing guidance on this project.
 
 ---
 - [Watch this repo](https://github.com/Twarner491/learnedSpectrum/subscription)
