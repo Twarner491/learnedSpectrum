@@ -92,16 +92,17 @@ def save_checkpoint(model: nn.Module,
     }, checkpoint_path)
     logger.info(f"checkpoint: {checkpoint_path}")
 
-def load_checkpoint(model: nn.Module,
-                   optimizer: Optional[torch.optim.Optimizer],
-                   checkpoint_path: Union[str, Path]) -> Tuple[nn.Module, Optional[torch.optim.Optimizer], Dict]:
-    """deserialize model state"""
-    checkpoint = torch.load(checkpoint_path)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    if optimizer is not None:
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    return model, optimizer, checkpoint
-
+def load_checkpoint(model, optimizer, checkpoint_path, weights_only=True):
+    try:
+        ckpt = torch.load(checkpoint_path, weights_only=weights_only)
+        model.load_state_dict(ckpt['model_state_dict'])
+        if optimizer and 'optimizer_state_dict' in ckpt:
+            optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+        return model, optimizer, ckpt
+    except Exception as e:
+        logging.warning(f"ckpt fail: {e}, continuing w/ fresh model")
+        return model, optimizer, {}
+    
 def get_cosine_schedule_with_warmup(optimizer: torch.optim.Optimizer,
                                   num_warmup_steps: int,
                                   num_training_steps: int,

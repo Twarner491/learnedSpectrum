@@ -1,119 +1,184 @@
 """
-Visualization utilities for fMRI data and training results
+visualization utils w/ diagnostics for model collapse
 """
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from pathlib import Path
-from nilearn import plotting
+from typing import List, Dict, Optional, Union, Tuple
+import wandb
 import torch
 from sklearn.metrics import confusion_matrix, roc_curve, auc
-from typing import List, Dict, Optional
-import wandb
+import logging
+
+logger = logging.getLogger(__name__)
 
 class VisualizationManager:
     def __init__(self, save_dir: Optional[Path] = None):
-        if save_dir is None:
-            save_dir = Path(__file__).parent.parent / "visualizations"
-        self.save_dir = save_dir
+        self.save_dir = save_dir or Path(__file__).parent.parent / "visualizations"
         self.save_dir.mkdir(parents=True, exist_ok=True)
+
+    def save_or_show(self, save_name: Optional[str] = None):
+        if save_name and self.save_dir:
+            plt.savefig(self.save_dir / f"{save_name}.png", bbox_inches='tight', dpi=300)
+            plt.close()
+        else:
+            plt.show()
 
     def plot_brain_slice(self, 
                         volume: np.ndarray,
-                        slice_idx: int = None,
-                        title: str = "Brain Slice",
-                        save_name: Optional[str] = None):
-        """Plot a single slice from a brain volume"""
-        if slice_idx is None:
-            slice_idx = volume.shape[-1] // 2
-
+                        slice_idx: Optional[int] = None,
+                        title: str = "brain slice",
+                        save_name: Optional[str] = None,
+                        cmap: str = 'gray'):
+        slice_idx = slice_idx or volume.shape[-1] // 2
         plt.figure(figsize=(10, 8))
-        plt.imshow(volume[:, :, slice_idx], cmap='gray')
-        plt.colorbar()
-        plt.title(title)
-        
-        if save_name and self.save_dir:
-            plt.savefig(self.save_dir / f"{save_name}.png")
-            plt.close()
-        else:
-            plt.show()
+        plt.imshow(volume[:, :, slice_idx], cmap=cmap)
+        plt.colorbar(label='intensity')
+        plt.title(f"{title} [z={slice_idx}]")
+        self.save_or_show(save_name)
 
     def plot_attention_map(self,
-                          attention_weights: torch.Tensor,
-                          volume_shape: tuple,
+                          attention_weights: Union[torch.Tensor, np.ndarray],
+                          volume_shape: Tuple[int, ...],
                           save_name: Optional[str] = None):
-        """Visualize attention weights from the Vision Transformer"""
-        # Reshape attention weights to match volume dimensions
-        att_map = attention_weights.reshape(volume_shape)
-        
-        # Plot three orthogonal views
-        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-        
-        # Sagittal view
-        axes[0].imshow(att_map[volume_shape[0]//2, :, :], cmap='hot')
-        axes[0].set_title('Sagittal View')
-        
-        # Coronal view
-        axes[1].imshow(att_map[:, volume_shape[1]//2, :], cmap='hot')
-        axes[1].set_title('Coronal View')
-        
-        # Axial view
-        axes[2].imshow(att_map[:, :, volume_shape[2]//2], cmap='hot')
-        axes[2].set_title('Axial View')
-        
-        plt.tight_layout()
-        
-        if save_name and self.save_dir:
-            plt.savefig(self.save_dir / f"{save_name}.png")
-            plt.close()
+        if torch.is_tensor(attention_weights):
+            att_map = attention_weights.cpu().numpy()
         else:
-            plt.show()
-            
-    def plot_training_history(self, history, save_name):
+            att_map = attention_weights
+        
+        att_map = att_map.reshape(volume_shape)
+        views = ['sagittal', 'coronal', 'axial']
+        slices = [att_map[volume_shape[0]//2, :, :],
+                 att_map[:, volume_shape[1]//2, :],
+                 att_map[:, :, volume_shape[2]//2]]
+        
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        for ax, view, slice_data in zip(axes, views, slices):
+            im = ax.imshow(slice_data, cmap='hot')
+            ax.set_title(f'{view} attention')
+            plt.colorbar(im, ax=ax)
+        
+        plt.suptitle('attention distribution across planes')
+        plt.tight_layout()
+        self.save_or_show(save_name)
+
+    def plot_training_history(self, 
+                            history: Dict[str, List[float]], 
+                            save_name: Optional[str] = None):
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
         
-        ax1.plot(history['train_loss'], label='train')
-        ax1.plot(history['val_loss'], label='val')
-        ax1.set_title('loss')
-        ax1.legend()
-        
-        ax2.plot(history['train_acc'], label='train')
-        ax2.plot(history['val_acc'], label='val')
-        ax2.set_title('accuracy')
-        ax2.legend()
-        
-        plt.savefig(self.save_dir / f"{save_name}.png")
-        plt.close()
-
-    def log_to_wandb(self, metrics, step):
-        """wandb metric dump"""
-        wandb.log(metrics, step=step)
-        
-        if 'train_metrics' in metrics:
-            # flatten nested dicts
-            for k, v in metrics['train_metrics'].items():
-                wandb.log({f'train_{k}': v}, step=step)
-        if 'val_metrics' in metrics:
-            for k, v in metrics['val_metrics'].items():
-                wandb.log({f'val_{k}': v}, step=step)
+        metrics = [('loss', ax1), ('acc', ax2)]
+        for metric, ax in metrics:
+            for split in ['train', 'val']:
+                key = f'{split}_{metric}'
+                if key in history:
+                    ax.plot(history[key], label=split)
+            ax.set_title(metric)
+            ax.set_xlabel('epoch')
+            ax.legend()
+            
+        plt.tight_layout()
+        self.save_or_show(save_name)
 
     def plot_confusion_matrix(self,
                             y_true: np.ndarray,
                             y_pred: np.ndarray,
                             classes: List[str],
-                            save_name: Optional[str] = None):
-        """Plot confusion matrix"""
+                            save_name: Optional[str] = None,
+                            normalize: bool = True):
         cm = confusion_matrix(y_true, y_pred)
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                   xticklabels=classes, yticklabels=classes)
-        plt.title('Confusion Matrix')
-        plt.xlabel('Predicted')
-        plt.ylabel('True')
-        
-        if save_name and self.save_dir:
-            plt.savefig(self.save_dir / f"{save_name}.png")
-            plt.close()
+        if normalize:
+            cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+            fmt = '.2%'
         else:
-            plt.show()
+            fmt = 'd'
+            
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(cm, annot=True, fmt=fmt, cmap='Blues',
+                   xticklabels=classes, yticklabels=classes)
+        plt.title('confusion matrix' + (' (normalized)' if normalize else ''))
+        plt.xlabel('predicted')
+        plt.ylabel('true')
+        self.save_or_show(save_name)
+
+    def plot_roc_curves(self,
+                       y_true: np.ndarray,
+                       y_scores: np.ndarray,
+                       classes: List[str],
+                       save_name: Optional[str] = None):
+        plt.figure(figsize=(10, 8))
+        unique_classes = np.unique(y_true)
+        
+        if len(unique_classes) == 1:
+            logger.warning("model collapse detected - single class predictions")
+            plt.text(0.5, 0.5, 'DEGENERATE: MODEL COLLAPSE', 
+                    ha='center', va='center')
+        else:
+            y_bin = np.eye(len(classes))[y_true]
+            for i, cls in enumerate(classes):
+                fpr, tpr, _ = roc_curve(y_bin[:, i], y_scores[:, i])
+                roc_auc = auc(fpr, tpr)
+                plt.plot(fpr, tpr, 
+                        label=f'{cls} (auc={roc_auc:.2f})')
+        
+        plt.plot([0, 1], [0, 1], 'k--', label='random')
+        plt.xlabel('false positive rate')
+        plt.ylabel('true positive rate')
+        plt.title('roc curves per class')
+        plt.legend()
+        self.save_or_show(save_name)
+
+    def plot_prediction_distribution(self,
+                                   probs: np.ndarray,
+                                   labels: np.ndarray,
+                                   save_name: Optional[str] = None):
+        plt.figure(figsize=(10, 6))
+        
+        for i in range(probs.shape[1]):
+            mask = labels == i
+            if mask.any():
+                sns.kdeplot(probs[mask, i], 
+                           label=f'class {i} (n={mask.sum()})')
+            
+        plt.axvline(0.5, color='k', linestyle='--', alpha=0.3,
+                   label='decision boundary')
+        plt.title('prediction confidence distribution')
+        plt.xlabel('model confidence')
+        plt.ylabel('density')
+        plt.legend()
+        self.save_or_show(save_name)
+
+    def plot_gradient_flow(self,
+                          model: torch.nn.Module,
+                          save_name: Optional[str] = None):
+        """track gradient health"""
+        named_params = [(name, p) for name, p in model.named_parameters() 
+                       if p.requires_grad and p.grad is not None]
+        
+        plt.figure(figsize=(12, 6))
+        ave_grads = []
+        max_grads = []
+        layers = []
+        
+        for n, p in named_params:
+            layers.append(n)
+            ave_grads.append(p.grad.abs().mean().item())
+            max_grads.append(p.grad.abs().max().item())
+            
+        plt.semilogy(ave_grads, 'b', label='mean')
+        plt.semilogy(max_grads, 'r', label='max')
+        plt.xticks(range(len(layers)), layers, rotation=45, ha='right')
+        plt.grid(True)
+        plt.legend()
+        plt.title('gradient magnitude distribution')
+        plt.tight_layout()
+        self.save_or_show(save_name)
+
+    def log_to_wandb(self, metrics: Dict, step: int):
+        wandb.log(metrics, step=step)
+        for split in ['train', 'val']:
+            if f'{split}_metrics' in metrics:
+                for k, v in metrics[f'{split}_metrics'].items():
+                    wandb.log({f'{split}_{k}': v}, step=step)

@@ -9,53 +9,41 @@ import torch
 
 @dataclass
 class Config:
-
     ROOT: str = str(Path(__file__).parent.parent.parent)
     CACHE: str = str(Path(ROOT) / "data/cleaned")
     CKPT_DIR: str = str(Path(ROOT) / "models/checkpoints")
 
-    # Device settings
     DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
-    USE_AMP: bool = True  # Keep mixed precision for 4070 Ti
+    USE_AMP: bool = False  # force fp32
     
-    # Training settings
-    BATCH_SIZE: int = 16  # Reduced from 32/64
-    NUM_WORKERS: int = 4  # Reduced from 8
+    BATCH_SIZE: int = 4
+    NUM_WORKERS: int = 0
     PIN_MEMORY: bool = True
-    PERSISTENT_WORKERS: bool = True
+    PERSISTENT_WORKERS: bool = False
     
-    # Model architecture
-    PATCH_SIZE: int = 8
-    EMBED_DIM: int = 384  # Reduced from 768
-    DEPTH: int = 8  # Reduced from 12
-    NUM_HEADS: int = 6  # Reduced from 12
-    MLP_RATIO: float = 4.0
+    PATCH_SIZE: int = 16
+    EMBED_DIM: int = 192
+    DEPTH: int = 4
+    NUM_HEADS: int = 3
+    MLP_RATIO: float = 2.0
     NUM_CLASSES: int = 4
     
-    # Regularization
-    DROP_RATE: float = 0.1
+    DROP_RATE: float = 0.2
     ATTN_DROP_RATE: float = 0.1
-    DROP_PATH_RATE: float = 0.1
-    WEIGHT_DECAY: float = 0.01
+    DROP_PATH_RATE: float = 0.05
+    WEIGHT_DECAY: float = 0.1
     
-    # Optimization
-    LEARNING_RATE: float = 2e-4
-    WARMUP_EPOCHS: int = 5
+    LEARNING_RATE: float = 1e-4
+    WARMUP_EPOCHS: int = 10
     NUM_EPOCHS: int = 30
-    GRADIENT_ACCUMULATION_STEPS: int = 2  # Added to compensate for smaller batch size
+    GRADIENT_ACCUMULATION_STEPS: int = 4
     
-    # Volume dimensions
     VOLUME_SIZE: Tuple[int, int, int] = (64, 64, 30)
+    GRADIENT_CLIP: float = 0.5
+    LABEL_SMOOTHING: float = 0.2
+    MIXUP_ALPHA: float = 0.4
 
-    GRADIENT_CLIP: float = 1.0
-    LABEL_SMOOTHING: float = 0.1
-    MIXUP_ALPHA: float = 0.2
-    
-    # Paths
-    CKPT_DIR: str = "checkpoints"
-    LOG_DIR: str = "logs"
-
-    @property  
+    @property
     def device(self):
         return torch.device(self.DEVICE)
 
