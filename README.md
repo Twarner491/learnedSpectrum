@@ -4,14 +4,12 @@ Learned Spectrum
 
 <p align="center">
 <em>fMRI Learning Stage Classification with Vision Transformers</em>
-</p>
-
-<span align="center">
 
 ![build](https://github.com/buttons/github-buttons/workflows/build/badge.svg)
-![hf](https://img.shields.io/badge/spaces-blue?style=plastic&logo=huggingface&logoColor=darkgrey&label=Hugging%20Face&labelColor=grey)
+[![hf](https://img.shields.io/badge/spaces-blue?style=flat&logo=huggingface&logoColor=darkgrey&label=Hugging%20Face&labelColor=grey)](https://huggingface.co/spaces/twarner/learnedSpectrum)
 
-</span>
+</p>
+
 
 ## Introduction
 
