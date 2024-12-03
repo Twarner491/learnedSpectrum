@@ -37,7 +37,7 @@ This work explores the potential of modern deep learning architectures in unders
 
 ## Usage
 
-**Google Colab** 
+**Option - Google Colab** 
 > 1. Open the notebook in Google Colab by clicking [this link](https://colab.research.google.com/drive/1sJd9nWyGymv6NzhaKcB-Y0KHW_PmF9RN?usp=sharing)
 > 2. Execute the notebook chronologically
 > 3. Make sure to enable A100 GPU runtime for optimal performance
