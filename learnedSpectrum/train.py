@@ -36,34 +36,29 @@ logger = logging.getLogger(__name__)
 class VisionTransformerModel(nn.Module):
     def __init__(self, config):
         super().__init__()
-        # Remove global AMP override
+        self.dropout = nn.Dropout(0.5)  # aggressive dropout
         vit_config = ViTConfig(
-            image_size=(config.VOLUME_SIZE[0], config.VOLUME_SIZE[0]),
+            image_size=(config.VOLUME_SIZE[0], config.VOLUME_SIZE[1]),
             patch_size=config.PATCH_SIZE,
             num_channels=config.VOLUME_SIZE[2],
-            hidden_size=config.EMBED_DIM,
-            num_hidden_layers=config.DEPTH,
-            num_attention_heads=config.NUM_HEADS,
-            intermediate_size=4 * config.EMBED_DIM,
-            hidden_dropout_prob=config.DROP_RATE,
-            attention_probs_dropout_prob=config.ATTN_DROP_RATE,
+            hidden_size=config.EMBED_DIM // 2,  # halve capacity
+            num_hidden_layers=config.DEPTH // 2,  # halve depth
+            num_attention_heads=max(2, config.NUM_HEADS // 2),  # reduce heads
+            intermediate_size=2 * config.EMBED_DIM,  # reduce mlp
+            hidden_dropout_prob=0.3,  # increase dropout
+            attention_probs_dropout_prob=0.3,
             num_labels=config.NUM_CLASSES
         )
         self.vit = ViTModel(vit_config)
-        self.classifier = nn.Linear(config.EMBED_DIM, config.NUM_CLASSES)
-        
-        # Move model to GPU if available
+        self.classifier = nn.Linear(config.EMBED_DIM // 2, config.NUM_CLASSES)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.to(self.device)
 
     def forward(self, x):
-        # Ensure input is on same device as model
-        x = x.to(self.device)
-        x = x.permute(0, 3, 1, 2)
-        
-        # Let autocast handle dtype conversion
+        x = x.to(self.device).squeeze(-1).permute(0, 3, 1, 2)
+        x = self.dropout(x)  # input dropout
         outputs = self.vit(pixel_values=x)
-        return self.classifier(outputs.last_hidden_state[:, 0])
+        return self.classifier(self.dropout(outputs.last_hidden_state[:, 0]))
     
 def train_one_epoch(model, dataloader, optimizer, scheduler, scaler, config):
     model.train()

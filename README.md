@@ -37,6 +37,11 @@ This work explores the potential of modern deep learning architectures in unders
 
 ## Usage
 
+#### Google Colab 
+1. Open the notebook in Google Colab by clicking [this link](https://colab.research.google.com/drive/1sJd9nWyGymv6NzhaKcB-Y0KHW_PmF9RN?usp=sharing)
+2. Follow the step-by-step instructions in the notebook
+3. Make sure to enable A100 GPU runtime for optimal performance
+
 ### Prerequisites
 - Python 3.8+
 - CUDA-capable GPU (recommended)
@@ -186,11 +191,6 @@ print(f"GPU device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() 
    - Verify dataset structure
    - Check preprocessing logs in `data/processed/logs/`
    - Ensure sufficient disk space
-
-For additional help, please [create an issue](https://github.com/Twarner491/learnedSpectrum/issues/new) with:
-- Error message
-- System specifications
-- Steps to reproduce
 
 ## Acknowledgements 
 A thank you to Talha Rafique and the USC Institute for Technology and Medical Systems's Khan Lab for providing guidance on this project.
