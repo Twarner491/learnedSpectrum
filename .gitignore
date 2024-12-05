@@ -44,6 +44,8 @@ data/cleaned/
 
 # Model checkpoints and logs
 checkpoints/
+models/
+visualizations/
 runs/
 wandb/
 *.pth

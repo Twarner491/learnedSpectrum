@@ -4,6 +4,7 @@ LearnedSpectrum: fMRI Learning Stage Classification with Vision Transformers
 
 __version__ = "0.1.0"
 
+
 from .config import Config, DataConfig
 from .data import (
     DatasetManager,
@@ -24,6 +25,7 @@ from .utils import (
     pretrain_transform,
     mixup
 )
+
 
 __all__ = [
     'Config',

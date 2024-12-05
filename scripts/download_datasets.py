@@ -54,6 +54,7 @@ DATASETS = {
     }
 }
 
+
 def download_file(url: str, destination: Path, chunk_size: int = 8192) -> None:
     """
     Download a file with progress bar
@@ -72,6 +73,7 @@ def download_file(url: str, destination: Path, chunk_size: int = 8192) -> None:
         for data in response.iter_content(chunk_size=chunk_size):
             size = f.write(data)
             pbar.update(size)
+
 
 def extract_archive(archive_path: Path, extract_path: Path) -> None:
     """
@@ -104,6 +106,7 @@ def extract_archive(archive_path: Path, extract_path: Path) -> None:
             safe_extract(tar_ref, str(extract_path))
     else:
         raise ValueError(f"Unsupported archive format: {archive_path.suffix}")
+    
 
 def setup_data_directories() -> Path:
     """
@@ -119,6 +122,7 @@ def setup_data_directories() -> Path:
 
     return raw_dir
 
+
 def get_file_extension(url: str) -> str:
     """
     Get the file extension from the URL
@@ -131,6 +135,7 @@ def get_file_extension(url: str) -> str:
         return '.tar.gz'
     else:
         raise ValueError(f"Unsupported file format in URL: {url}")
+    
 
 def download_datasets(force_download: bool = False) -> None:
     """
@@ -180,6 +185,7 @@ def download_datasets(force_download: bool = False) -> None:
     else:
         logger.error("Some datasets failed to download. Please check the errors above.")
         sys.exit(1)
+        
 
 def main():
     """

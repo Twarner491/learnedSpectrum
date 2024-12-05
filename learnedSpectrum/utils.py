@@ -9,7 +9,9 @@ from pathlib import Path
 from sklearn.metrics import roc_auc_score, accuracy_score
 from torch.optim.lr_scheduler import LambdaLR
 
+
 logger = logging.getLogger(__name__)
+
 
 # foundation layer - no project deps
 def seed_everything(seed: int = 42) -> None:
@@ -21,6 +23,7 @@ def seed_everything(seed: int = 42) -> None:
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+
 def print_gpu_memory() -> None:
     """debug memory pressure"""
     if torch.cuda.is_available():
@@ -30,6 +33,7 @@ def print_gpu_memory() -> None:
             allocated = torch.cuda.memory_allocated(i) / 1024**2
             free = total - reserved
             logger.info(f"GPU {i}: {allocated:.1f}MB alloc, {reserved:.1f}MB rsv, {free:.1f}MB free / {total:.1f}MB")
+
 
 def get_optimizer(model: nn.Module, config) -> torch.optim.Optimizer:
     """adamw w/ smart decay grouping"""
@@ -44,6 +48,7 @@ def get_optimizer(model: nn.Module, config) -> torch.optim.Optimizer:
         {'params': no_decay, 'weight_decay': 0.0}
     ], lr=config.LEARNING_RATE)
 
+
 def verify_model_devices(model: nn.Module) -> None:
     """sanity check device placement"""
     devices = {param.device for param in model.parameters()}
@@ -51,11 +56,13 @@ def verify_model_devices(model: nn.Module) -> None:
         raise RuntimeError(f"model params scattered across: {devices}")
     logger.info(f"model on: {next(iter(devices))}")
 
+
 def pretrain_transform(x: torch.Tensor) -> torch.Tensor:
     """basic normalization"""
     if x.mean() > 1e-3 or x.std() > 1:
         x = (x - x.mean()) / (x.std() + 1e-6)
     return x
+
 
 def mixup(x: torch.Tensor, 
          y: torch.Tensor, 
@@ -72,6 +79,7 @@ def mixup(x: torch.Tensor,
     mixed_x = lam * x + (1 - lam) * x[index, :]
     y_a, y_b = y, y[index]
     return mixed_x, y_a, y_b, lam
+
 
 def save_checkpoint(model: nn.Module,
                    optimizer: torch.optim.Optimizer,
@@ -92,6 +100,7 @@ def save_checkpoint(model: nn.Module,
     }, checkpoint_path)
     logger.info(f"checkpoint: {checkpoint_path}")
 
+
 def load_checkpoint(model, optimizer, checkpoint_path, weights_only=True):
     try:
         ckpt = torch.load(checkpoint_path, weights_only=weights_only)
@@ -102,6 +111,7 @@ def load_checkpoint(model, optimizer, checkpoint_path, weights_only=True):
     except Exception as e:
         logging.warning(f"ckpt fail: {e}, continuing w/ fresh model")
         return model, optimizer, {}
+    
     
 def get_cosine_schedule_with_warmup(optimizer: torch.optim.Optimizer,
                                   num_warmup_steps: int,
@@ -114,6 +124,7 @@ def get_cosine_schedule_with_warmup(optimizer: torch.optim.Optimizer,
         progress = float(current_step - num_warmup_steps) / float(max(1, num_training_steps - num_warmup_steps))
         return max(0.0, 0.5 * (1.0 + math.cos(math.pi * float(num_cycles) * 2.0 * progress)))
     return LambdaLR(optimizer, lr_lambda)
+
 
 def calculate_metrics(outputs: torch.Tensor, 
                      targets: torch.Tensor) -> Dict[str, float]:
