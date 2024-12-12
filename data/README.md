@@ -1,130 +1,113 @@
 # OpenFMRI Classification Learning Datasets
 
-This README provides a comprehensive overview of four classification learning datasets from the OpenFMRI project, along with details on data loading and preprocessing methods. These datasets offer valuable resources for researchers studying cognitive processes related to learning, decision-making, and task-switching.
+This README provides a comprehensive overview of four classification learning datasets from the OpenFMRI project. These datasets serve as crucial resources for researchers investigating cognitive processes underlying learning, decision-making, and task-switching paradigms.
 
 ## Datasets
 
 ### 1. [Classification Learning (ds000002)](https://openfmri.org/dataset/ds000002/)
 
 #### Participants
-17 right-handed healthy English-speaking subjects (age range not specified).
+17 right-handed healthy English-speaking subjects participated in feedback-driven classification learning tasks.
 
 #### Task Design
-Subjects participated in two types of feedback-driven classification learning tasks:
+Subjects completed two distinct paradigms:
+1. Probabilistic Classification (PROB)
+2. Deterministic Classification (DET)
 
-1. Probabilistic (PROB)
-2. Deterministic (DET)
-
-Followed by "mixed blocks" in an event-related design.
+The experiment concluded with mixed blocks implementing an event-related design.
 
 #### Procedure
-- Pure blocks: 10 cycles of 5 classification trials followed by 3 baseline trials
-- Mixed blocks: 100 stimuli (50 PROB, 50 DET)
-- Subjects predicted weather (sun or rain) based on card combinations
-- Stimulus presentation: 4 seconds (pure blocks), 2.5 seconds (mixed blocks)
-- Feedback provided in pure blocks, not in mixed blocks
+Pure blocks consisted of 10 cycles, each containing 5 classification trials followed by 3 baseline trials. Mixed blocks presented 100 stimuli (50 PROB, 50 DET). Weather prediction via card combinations served as the primary task. Stimulus presentation lasted 4s in pure blocks, 2.5s in mixed blocks. Feedback appeared exclusively in pure blocks.
 
 #### MRI Acquisition
-- 3T Siemens Allegra MRI scanner
-- 180 functional T2*-weighted echoplanar images (EPI)
-- TR = 2s, TE = 30ms, flip angle = 90°, FOV = 200mm, 33 slices, 4mm slice thickness
+Data collection utilized a 3T Siemens Allegra scanner:
+- 180 functional T2*-weighted EPI
+- TR=2s, TE=30ms, flip angle=90°, FOV=200mm
+- 33 slices, 4mm thickness
 
 ### 2. [Classification Learning and Tone-Counting (ds000011)](https://openfmri.org/dataset/ds000011/)
 
 #### Participants
-14 subjects underwent fMRI scanning while performing classification learning tasks.
+14 subjects underwent fMRI scanning during classification tasks.
 
 #### Task Design
-Subjects were trained on two different classification problems:
-1. Single-task (ST) condition
-2. Dual-task (DT) condition with a concurrent tone-counting task
+The experiment implemented dual classification problems:
+1. Single-Task (ST) condition
+2. Dual-Task (DT) condition w/ concurrent tone-counting
 
 #### Procedure
-- Training phase: Subjects learned categories through trial-by-trial feedback
-- Probe phase: Mixed event-related fMRI paradigm without feedback
-- All items presented under ST conditions during the probe phase
-- Additional tone-counting localizer scan included
-
-#### Tasks
-1. Tone counting
-2. Single-task weather prediction
-3. Dual-task weather prediction
-4. Classification probe without feedback
-
-#### MRI Acquisition
-- 3T Siemens Allegra head-only MR scanner
+Training phase employed trial-error feedback mechanisms. Probe phase utilized mixed event-related fMRI without feedback. ST conditions dominated probe phase, supplemented by tone-counting localizer scans.
 
 ### 3. [Classification Learning and Stop-Signal (ds000017)](https://openfmri.org/dataset/ds000017/)
 
 #### Participants
-8 healthy subjects (mean age 38.9 ± 10.1 years; 1 female)
+N=8 healthy subjects (mean age 38.9±10.1 years; 1 female)
 
 #### Task Design
-Two distinct tasks:
-1. Probabilistic classification learning (PCL)
-2. Cued response-inhibition task (stop-signal task)
+Parallel experimental paradigms:
+1. Probabilistic Classification Learning (PCL)
+2. Cued Response-Inhibition (stop-signal)
 
 #### Procedure
-- PCL task: 50 PCL trials and 30 baseline trials (10 cycles of 5 PCL + 3 baseline)
-- Stop-signal task: 2-3 runs of 256 trials each
-- PCL task identical to ds000002
-- Stop-signal task: Subjects responded to arrow direction, inhibiting response on specific cues
-
-#### MRI Acquisition
-- 3T Siemens Allegra MRI scanner
-- 180 functional T2*-weighted echoplanar images (EPI)
-- TR = 2s, TE = 30ms, flip angle = 90°, FOV = 200mm, 33 slices, 4mm slice thickness
+PCL implemented 50 trials + 30 baseline trials (10 cycles [5 PCL + 3 baseline]). Stop-signal task comprised 2-3 runs of 256 trials each. PCL protocol matched ds000002 specifications. Stop-signal required arrow direction responses with inhibition cues.
 
 ### 4. [Classification Learning and Reversal (ds000052)](https://openfmri.org/dataset/ds000052/)
 
 #### Task Design
-Four blocks of event-related probabilistic classification learning:
-1. Two initial blocks with original reward contingencies
-2. Two additional blocks with reversed reward contingencies
+Four blocks of event-related PCL:
+- Blocks 1-2: Original reward contingencies
+- Blocks 3-4: Reversed reward contingencies
 
-## Data Loading and Preprocessing
+## Data Processing Pipeline
 
 ### Preprocessing
 
-1. `preprocess_volume`: Performs robust fMRI preprocessing, including:
+1. `preprocess_volume`:
    - Dimension validation
-   - Spatial resizing using zoom
+   - Spatial resizing via zoom
    - Intensity normalization
+   - Motion correction
+   - Slice timing correction
 
-2. `normalize_temporal_resolution`: Ensures temporal consistency across datasets by resampling to a target TR (repetition time).
+2. `normalize_temporal_resolution`:
+   Ensures temporal consistency through TR resampling
 
-3. `FMRIAugmentor`: Applies fMRI-specific data augmentations:
+3. `FMRIAugmentor`:
    - Temporal masking
    - Spatial masking
    - Noise injection
+   - Signal augmentation
 
-### Data Loading
+### Data Loading Architecture
 
-1. `create_dataloaders`: Creates train and validation data loaders with appropriate splitting and collate functions.
+1. `create_dataloaders`: Implements train/validation splitting with appropriate collation functions
 
-2. `collate_fn` and `collate_variable_length`: Handle batch creation, including proper handling of variable-length sequences and mixed data types.
+2. `collate_fn`/`collate_variable_length`: Manages batch creation for variable-length sequences
 
-3. `FMRIDataset`: A custom dataset class that:
-   - Manages BIDS-formatted data
-   - Validates and loads NIFTI files
-   - Extracts AAL (Automated Anatomical Labeling) regions
-   - Computes temporal patterns using wavelet decomposition
-   - Implements caching for efficient data loading
+3. `FMRIDataset`: 
+   - BIDS format management
+   - NIFTI validation/loading
+   - AAL region extraction
+   - Wavelet decomposition for temporal patterns
+   - Memory-efficient caching system
 
-4. `extract_aal_regions` and `extract_temporal_patterns`: Extract meaningful features from raw fMRI data, including regional activations and temporal dynamics.
+4. Feature Extraction Protocols:
+   - `extract_aal_regions`: Regional activation analysis
+   - `extract_temporal_patterns`: Dynamic pattern recognition
 
-5. `BIDSManager`: Handles dataset fetching and organization according to the BIDS (Brain Imaging Data Structure) format.
+5. `BIDSManager`: Dataset organization adhering to BIDS specification
 
-## Notes
+## Methodological Considerations
 
-- The consistent use of 3T Siemens Allegra MRI scanners across studies facilitates comparability of results.
-- Researchers should be aware of potential differences in acquisition parameters and task designs when comparing across datasets.
-- The data loading and preprocessing pipeline is designed to handle the complexities of fMRI data, including spatial and temporal normalization, feature extraction, and efficient data loading.
+- Consistent hardware (3T Siemens Allegra) facilitates cross-study comparison
+- Researchers must account for acquisition parameter variations
+- Pipeline handles spatial/temporal normalization, feature extraction, efficient loading
+- Data quality metrics implemented throughout processing stream
 
 ## References
 
-1. Aron, A. R., Gluck, M. A., and Poldrack, R. A. (2006). Long-term test-retest reliability of functional MRI in a classification learning task. Neuroimage, 29(3):1000–6.
+1. Aron, A. R., Gluck, M. A., & Poldrack, R. A. (2006). Long-term test-retest reliability of functional MRI in classification learning. NeuroImage, 29(3), 1000-1006.
 
-2. Knowlton, B. J., Mangels, J. A., and Squire, L. R. (1996). A neostriatal habit learning system in humans. Science, 273(5280):1399–402.
+2. Knowlton, B. J., Mangels, J. A., & Squire, L. R. (1996). A neostriatal habit learning system in humans. Science, 273(5280), 1399-1402.
 
-3. Poldrack, R. A., Clark, J., Paré-Blagoev, E. J., Shohamy, D., Creso Moyano, J., Myers, C., and Gluck, M. A. (2001). Interactive memory systems in the human brain. Nature, 414(6863):546–50.
+3. Poldrack, R. A., et al. (2001). Interactive memory systems in the human brain. Nature, 414(6863), 546-550.

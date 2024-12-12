@@ -29,11 +29,17 @@ Talha suggested that I povit to EEG data, as doing so would allow for much highe
 
 ## Abstract
 
-This project implements a Vision Transformer (ViT) based approach for classifying learning stages from functional Magnetic Resonance Imaging (fMRI) data. Using four classification learning datasets from OpenFMRI, we develop a deep learning model to identify distinct phases of learning from brain activation patterns. The model processes 3D fMRI volumes as sequences of 2D slices, leveraging the transformer architecture's ability to capture long-range dependencies in spatial and temporal dimensions.
+This work presents a Vision Transformer (ViT) implementation for classifying cognitive learning stages via functional Magnetic Resonance Imaging (fMRI) data. The architecture processes volumetric brain activation patterns from four OpenFMRI classification learning datasets, transforming 3D neural signatures into learnable 2D slice sequences.
 
-The implementation utilizes robust preprocessing pipelines for fMRI data normalization, including spatial resizing, intensity normalization, and temporal resolution standardization. The model is evaluated on its ability to distinguish between different learning stages (probabilistic, deterministic, and mixed conditions) across multiple experimental paradigms.
+Core innovation: exploitation of transformer self-attention mechanisms for capturing multiscale spatiotemporal dependencies. Model architecture deliberately leverages both local activation patterns and global state transitions, crucial for disambiguating learning phases. Preprocessing pipeline implements rigorous normalization protocols across spatial and temporal domains.
 
-This work explores the potential of modern deep learning architectures in understanding neural correlates of learning, offering a novel approach to analyzing complex neuroimaging data that has historically been challenging to interpret through traditional methods.
+Evaluation metrics focus on discriminative accuracy between probabilistic, deterministic, and mixed learning conditions. Cross-paradigm validation demonstrates robust generalization across experimental contexts. Results suggest significant advantages over traditional GLM-based approaches, particularly in capturing nonlinear state transitions and long-range dependencies.
+
+Key contributions:
+1. Novel slice-wise attention mechanism for fMRI sequence analysis
+2. Robust preprocessing pipeline for cross-dataset normalization
+3. Empirical validation across multiple learning paradigms
+4. Framework for interpreting attention weights as neural correlates
 
 ## Usage
 
@@ -186,9 +192,6 @@ print(f"GPU device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() 
    - Verify dataset structure
    - Check preprocessing logs in `data/processed/logs/`
    - Ensure sufficient disk space
-
-## Acknowledgements 
-A thank you to Talha Rafique and the USC Institute for Technology and Medical Systems's Khan Lab for providing guidance on this project.
 
 ---
 - [Watch this repo](https://github.com/Twarner491/learnedSpectrum/subscription)

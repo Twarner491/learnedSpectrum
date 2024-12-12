@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Optional, Union, Tuple
 import wandb
 import torch
-from sklearn.metrics import confusion_matrix, roc_curve, auc
+from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_score, recall_score, f1_score
 import logging
 from torch.nn import functional as F
 
@@ -18,32 +18,49 @@ class VisualizationManager:
         self.save_dir = save_dir or Path().absolute() / "notebooks/visualizations"
         self.save_dir.mkdir(parents=True, exist_ok=True)
         
-        # modern style config
-        plt.style.use('dark_background')  # base
+        # Scientific publication style with rainbow color palette
+        plt.style.use('default')
+        self.colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', 
+                      '#9467bd', '#8c564b', '#e377c2', '#7f7f7f']
         plt.rcParams.update({
+            'axes.prop_cycle': plt.cycler(color=self.colors),
+            'axes.facecolor': 'white',
+            'figure.facecolor': 'white',
             'axes.grid': True,
-            'grid.alpha': 0.3,
-            'axes.facecolor': '#1f1f1f',
-            'figure.facecolor': '#2d2d2d',
-            'axes.titlesize': 10,
-            'axes.labelsize': 9
+            'grid.alpha': 0.2,
+            'axes.titlesize': 12,
+            'axes.labelsize': 10,
+            'font.family': 'Arial',
+            'figure.dpi': 300,
+            'axes.spines.top': False,
+            'axes.spines.right': False,
+            'savefig.bbox': 'tight',
+            'savefig.pad_inches': 0.1,
+            'text.color': 'black',
+            'axes.labelcolor': 'black',
+            'xtick.color': 'black',
+            'ytick.color': 'black'
         })
         
     def save_or_show(self, save_name: Optional[str] = None):
-        """handle io w/ proper cleanup"""
-        if save_name and self.save_dir:
-            plt.savefig(self.save_dir / f"{save_name}.png", 
-                       bbox_inches='tight', dpi=300)
-            plt.close()
-        else:
-            plt.show()
-            
+        try:
+            if save_name:
+                save_path = self.save_dir / f"{save_name}.png"
+                self.save_dir.mkdir(parents=True, exist_ok=True)
+                plt.savefig(save_path, bbox_inches='tight', dpi=100)
+            else:
+                plt.show()
+        except Exception as e:
+            logger.error(f"Failed to save/show plot: {str(e)}")
+        finally:
+            plt.close('all')  # Ensure all figures are closed
+
     def plot_brain_slice(self, volume: np.ndarray,
                         slice_idx: Optional[int] = None,
                         time_idx: Optional[int] = None,
                         title: str = "brain slice",
                         save_name: Optional[str] = None,
-                        cmap: str = 'gray'):
+                        cmap: str = 'turbo'):
         """4d fmri vis w/ proper bounds"""
         if len(volume.shape) == 4:
             time_idx = time_idx or volume.shape[-1] // 2
@@ -52,10 +69,35 @@ class VisualizationManager:
         slice_idx = slice_idx or volume.shape[2] // 2
         slice_idx = min(slice_idx, volume.shape[2] - 1)
         
-        plt.figure(figsize=(10, 8))
-        plt.imshow(volume[:, :, slice_idx], cmap=cmap)
-        plt.colorbar(label='intensity')
-        plt.title(f"{title} [z={slice_idx}, t={time_idx}]")
+        # Create higher resolution figure with white background
+        fig = plt.figure(figsize=(10, 8), facecolor='white', dpi=300)  # Increased size and DPI
+        ax = plt.gca()
+        ax.set_facecolor('white')
+        
+        # Plot the slice with improved styling and interpolation
+        im = ax.imshow(volume[:, :, slice_idx], 
+                      cmap=cmap,
+                      interpolation='bicubic',  # Changed to bicubic for smoother interpolation
+                      aspect='equal')
+        
+        # Add a clean colorbar
+        cbar = plt.colorbar(im, label='Intensity', ax=ax)
+        cbar.ax.tick_params(labelsize=10)  # Slightly larger ticks for higher res
+        cbar.ax.yaxis.label.set_size(11)
+        
+        # Clean up the axes
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        
+        # Add title with proper formatting
+        plt.title(f"{title}\n[z={slice_idx}" + (f", t={time_idx}]" if time_idx is not None else "]"),
+                  pad=10, fontsize=14)  # Slightly larger title for higher res
+        
+        plt.tight_layout()
         self.save_or_show(save_name)
 
     def plot_attention_map(self, attention_weights: torch.Tensor,
@@ -68,8 +110,19 @@ class VisualizationManager:
             else:
                 att_map = attention_weights
                 
-            # handle cls token properly
-            att_map = att_map[:, 1:].mean(0)  # avg heads, rm cls
+            # Get the actual size of attention weights
+            att_size = att_map.size if isinstance(att_map, np.ndarray) else att_map.numel()
+            logger.info(f"Attention map size: {att_size}, target shape: {volume_shape}")
+            
+            # Safely reshape or pad/truncate to match volume shape
+            total_voxels = np.prod(volume_shape)
+            if att_size != total_voxels:
+                logger.warning(f"Attention map size mismatch: {att_size} vs {total_voxels}")
+                # Pad or truncate to match
+                att_map = np.pad(att_map.flatten(), 
+                               (0, max(0, total_voxels - att_size)))[:total_voxels]
+                
+            # Reshape to volume shape
             att_map = att_map.reshape(volume_shape)
             
             views = ['sagittal', 'coronal', 'axial']
@@ -80,7 +133,7 @@ class VisualizationManager:
             
             fig, axes = plt.subplots(1, 3, figsize=(15, 5))
             for ax, view, slice_data in zip(axes, views, slices):
-                im = ax.imshow(slice_data, cmap='inferno')
+                im = ax.imshow(slice_data, cmap='viridis')
                 ax.set_title(f'{view}')
                 plt.colorbar(im, ax=ax)
                 
@@ -94,20 +147,28 @@ class VisualizationManager:
 
     def plot_training_history(self, history: Dict[str, List[float]], 
                             save_name: Optional[str] = None):
-        """learning curves w/ proper scaling"""
+        """Plot training metrics with scientific styling"""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
         
-        for metric, ax in [('loss', ax1), ('acc', ax2)]:
-            for split in ['train', 'val']:
+        metrics = [('loss', ax1), ('acc', ax2)]
+        splits = ['train', 'val']
+        
+        for metric, ax in metrics:
+            for i, split in enumerate(splits):
                 key = f'{split}_{metric}'
                 if key in history and len(history[key]) > 0:
-                    ax.plot(history[key], label=split)
-                    
-            ax.set_yscale('log' if metric == 'loss' else 'linear')
-            ax.set_title(metric)
-            ax.set_xlabel('epoch')
-            ax.legend()
+                    ax.plot(history[key], 
+                           color=self.colors[i],
+                           label=split.capitalize(),
+                           linewidth=2)
             
+            ax.set_yscale('log' if metric == 'loss' else 'linear')
+            ax.set_title(f'{metric.capitalize()}', pad=10)
+            ax.set_xlabel('Epoch')
+            ax.set_ylabel('Value')
+            ax.grid(True, alpha=0.2)
+            ax.legend(frameon=False)
+        
         plt.tight_layout()
         self.save_or_show(save_name)
 
@@ -116,39 +177,53 @@ class VisualizationManager:
                             classes: List[str],
                             save_name: Optional[str] = None,
                             normalize: bool = True):
-        """conf matrix w/ proper handling of class imbalance"""
-        if len(np.unique(y_true)) == 1:
-            logger.warning("degenerate predictions detected")
-            return
+        try:
+            plt.close('all')
+            unique_classes = np.unique(np.concatenate([y_true, y_pred]))
             
-        cm = confusion_matrix(y_true, y_pred)
-        if normalize:
-            cm = cm.astype('float') / (cm.sum(axis=1)[:, np.newaxis] + 1e-8)
+            if len(unique_classes) == 1:
+                logger.warning(f"Only one class present: {classes[unique_classes[0]]}")
+                fig = plt.figure(figsize=(6, 6))
+                plt.text(0.5, 0.5, f"All predictions: {classes[unique_classes[0]]}", 
+                        ha='center', va='center', color='black')
+                plt.axis('off')
+            else:
+                cm = confusion_matrix(y_true, y_pred)
+                if normalize:
+                    cm = cm.astype('float32') / (cm.sum(axis=1)[:, np.newaxis] + 1e-8)
+                
+                fig = plt.figure(figsize=(8, 6))
+                sns.heatmap(cm, annot=True, 
+                           fmt='.2%' if normalize else 'd',
+                           cmap='YlOrRd',
+                           xticklabels=classes, 
+                           yticklabels=classes,
+                           cbar_kws={'label': 'Proportion' if normalize else 'Count'})
+                plt.title('Confusion Matrix' + (' (Normalized)' if normalize else ''))
+                plt.xlabel('Predicted')
+                plt.ylabel('True')
             
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(cm, annot=True, 
-                   fmt='.2%' if normalize else 'd',
-                   cmap='Blues',
-                   xticklabels=classes, 
-                   yticklabels=classes)
-        plt.title('confusion matrix' + 
-                 (' (normalized)' if normalize else ''))
-        plt.xlabel('predicted')
-        plt.ylabel('true')
-        self.save_or_show(save_name)
+            self.save_or_show(save_name)
+            
+        except Exception as e:
+            logger.error(f"Confusion matrix plotting failed: {str(e)}")
+            plt.close('all')
 
     def plot_roc_curves(self, y_true: np.ndarray,
                        y_scores: np.ndarray,
                        classes: List[str],
                        save_name: Optional[str] = None):
-        """roc curves w/ proper multiclass handling"""
-        plt.figure(figsize=(10, 8))
-        
-        if len(np.unique(y_true)) <= 1:
-            logger.warning("insufficient classes for roc")
-            return
-            
         try:
+            plt.close('all')
+            if len(np.unique(y_true)) <= 1:
+                logger.warning("Insufficient classes for ROC curve")
+                return
+                
+            fig = plt.figure(figsize=(8, 6))  # Reduced figure size
+            
+            # Convert to float32 for memory efficiency
+            y_scores = y_scores.astype(np.float32)
+            
             y_bin = F.one_hot(
                 torch.tensor(y_true), 
                 num_classes=len(classes)
@@ -157,26 +232,26 @@ class VisualizationManager:
             for i, cls in enumerate(classes):
                 fpr, tpr, _ = roc_curve(y_bin[:, i], y_scores[:, i])
                 roc_auc = auc(fpr, tpr)
-                plt.plot(fpr, tpr, label=f'{cls} (auc={roc_auc:.2f})')
-                
-            plt.plot([0, 1], [0, 1], 'k--', label='random')
-            plt.xlabel('false positive rate')
-            plt.ylabel('true positive rate')
-            plt.title('roc curves per class')
-            plt.legend()
+                plt.plot(fpr, tpr, label=f'{cls} (AUC={roc_auc:.2f})')
+            
+            plt.plot([0, 1], [0, 1], 'k--', label='Random')
+            plt.xlabel('False Positive Rate')
+            plt.ylabel('True Positive Rate')
+            plt.title('ROC Curves by Class')
+            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+            plt.tight_layout()
+            
             self.save_or_show(save_name)
             
         except Exception as e:
-            logger.error(f"roc fail: {str(e)}")
-            plt.close()
+            logger.error(f"ROC curve plotting failed: {str(e)}")
+            plt.close('all')
 
     def plot_gradient_flow(self, model: torch.nn.Module,
                           save_name: Optional[str] = None):
-        """gradient health monitor"""
-        named_params = [
-            (n,p) for n,p in model.named_parameters()
-            if p.requires_grad and p.grad is not None
-        ]
+        """Gradient flow analysis with scientific styling"""
+        named_params = [(n,p) for n,p in model.named_parameters() 
+                       if p.requires_grad and p.grad is not None]
         
         plt.figure(figsize=(12, 6))
         ave_grads = []
@@ -188,27 +263,38 @@ class VisualizationManager:
             ave_grads.append(p.grad.abs().mean().item())
             max_grads.append(p.grad.abs().max().item())
             
-        plt.semilogy(ave_grads, 'b', label='mean')
-        plt.semilogy(max_grads, 'r', label='max')
-        plt.xticks(range(len(layers)), layers, 
-                  rotation=45, ha='right')
-        plt.grid(True)
-        plt.legend()
-        plt.title('gradient magnitude distribution')
+        plt.semilogy(ave_grads, color=self.colors[0], 
+                     label='Mean', linewidth=2)
+        plt.semilogy(max_grads, color=self.colors[1], 
+                     label='Max', linewidth=2)
+        
+        plt.xticks(range(len(layers)), layers, rotation=45, ha='right')
+        plt.grid(True, alpha=0.2)
+        plt.legend(frameon=False)
+        plt.title('Gradient Flow Analysis')
+        plt.xlabel('Layers')
+        plt.ylabel('Gradient Magnitude (log scale)')
+        
         plt.tight_layout()
         self.save_or_show(save_name)
 
     def log_to_wandb(self, metrics: Dict, step: int):
-        """wandb logging w/ proper metric handling"""
         try:
-            wandb.log(metrics, step=step)
-            for split in ['train', 'val']:
-                if f'{split}_metrics' in metrics:
-                    for k, v in metrics[f'{split}_metrics'].items():
-                        if not np.isnan(v):  # filter bad metrics
-                            wandb.log({f'{split}_{k}': v}, step=step)
+            # Ensure metrics are JSON serializable
+            clean_metrics = {}
+            for k, v in metrics.items():
+                if isinstance(v, (int, float, str, bool)) and not np.isnan(v):
+                    clean_metrics[k] = v
+                elif isinstance(v, dict):
+                    clean_metrics[k] = {
+                        sk: sv for sk, sv in v.items() 
+                        if isinstance(sv, (int, float, str, bool)) and not np.isnan(sv)
+                    }
+            
+            wandb.log(clean_metrics, step=step)
+            
         except Exception as e:
-            logger.error(f"wandb fail: {str(e)}")
+            logger.error(f"WandB logging failed: {str(e)}")
 
     def plot_prediction_distribution(self, probs: np.ndarray,
                                    labels: np.ndarray,
@@ -229,3 +315,22 @@ class VisualizationManager:
         plt.ylabel('density')
         plt.legend()
         self.save_or_show(save_name)
+
+    def update_visualization_style(self):
+        """Update style for publication quality"""
+        plt.style.use('default')
+        plt.rcParams.update({
+            'axes.grid': True,
+            'grid.alpha': 0.2,
+            'axes.facecolor': 'white',
+            'figure.facecolor': 'white',
+            'axes.titlesize': 12,
+            'axes.labelsize': 10,
+            'font.family': 'sans-serif',
+            'font.sans-serif': ['Arial'],
+            'figure.dpi': 300,
+            'axes.spines.top': False,
+            'axes.spines.right': False,
+            'savefig.bbox': 'tight',
+            'savefig.pad_inches': 0.1
+        })
