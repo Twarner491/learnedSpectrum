@@ -13,9 +13,7 @@ from torch.optim.lr_scheduler import LambdaLR
 logger = logging.getLogger(__name__)
 
 
-# foundation layer - no project deps
 def seed_everything(seed: int = 42) -> None:
-    """canonical torch seeding. fighting aleatoric uncertainty w/ epistemic certainty."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -25,7 +23,6 @@ def seed_everything(seed: int = 42) -> None:
 
 
 def print_gpu_memory() -> None:
-    """debug memory pressure"""
     if torch.cuda.is_available():
         for i in range(torch.cuda.device_count()):
             total = torch.cuda.get_device_properties(i).total_memory / 1024**2
@@ -36,7 +33,6 @@ def print_gpu_memory() -> None:
 
 
 def get_optimizer(model: nn.Module, config) -> torch.optim.Optimizer:
-    """adamw w/ smart decay grouping"""
     decay, no_decay = [], []
     for name, param in model.named_parameters():
         if not param.requires_grad:
@@ -50,7 +46,6 @@ def get_optimizer(model: nn.Module, config) -> torch.optim.Optimizer:
 
 
 def verify_model_devices(model: nn.Module) -> None:
-    """sanity check device placement"""
     devices = {param.device for param in model.parameters()}
     if len(devices) > 1:
         raise RuntimeError(f"model params scattered across: {devices}")
@@ -58,7 +53,6 @@ def verify_model_devices(model: nn.Module) -> None:
 
 
 def pretrain_transform(x: torch.Tensor) -> torch.Tensor:
-    """basic normalization"""
     if x.mean() > 1e-3 or x.std() > 1:
         x = (x - x.mean()) / (x.std() + 1e-6)
     return x
@@ -67,7 +61,6 @@ def pretrain_transform(x: torch.Tensor) -> torch.Tensor:
 def mixup(x: torch.Tensor, 
          y: torch.Tensor, 
          alpha: float = 1.0) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, float]:
-    """mixup augmentation. zhang et al 2018."""
     if alpha > 0:
         lam = np.random.beta(alpha, alpha)
     else:
@@ -87,7 +80,6 @@ def save_checkpoint(model: nn.Module,
                    loss: float,
                    config,
                    filename: str) -> None:
-    """serialize model state"""
     checkpoint_path = Path(config.CKPT_DIR) / filename
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     
@@ -117,7 +109,6 @@ def get_cosine_schedule_with_warmup(optimizer: torch.optim.Optimizer,
                                   num_warmup_steps: int,
                                   num_training_steps: int,
                                   num_cycles: float = 0.5) -> LambdaLR:
-    """cosine decay w/ linear warmup. because cyclical > step."""
     def lr_lambda(current_step):
         if current_step < num_warmup_steps:
             return float(current_step) / float(max(1, num_warmup_steps))
@@ -128,7 +119,6 @@ def get_cosine_schedule_with_warmup(optimizer: torch.optim.Optimizer,
 
 def calculate_metrics(outputs: torch.Tensor, 
                      targets: torch.Tensor) -> Dict[str, float]:
-    """basic clf metrics, nothing fancy"""
     preds = outputs.argmax(dim=1)
     acc = accuracy_score(targets.cpu().numpy(), preds.cpu().numpy())
     
@@ -139,10 +129,74 @@ def calculate_metrics(outputs: torch.Tensor,
             outputs.softmax(dim=1).cpu().numpy(),
             multi_class='ovr'
         )
-    except ValueError:  # missing classes
+    except ValueError:  
         auc = float('nan')
     
     return {
         'accuracy': acc,
         'auc': auc,
     }
+
+
+def get_ds000002_stage(task_name: str) -> str:
+    if 'deterministicclassification_run-01' in task_name:
+        return 'acquisition'
+    elif 'deterministicclassification_run-02' in task_name:
+        return 'consolidation'
+    elif 'probabilisticclassification' in task_name:
+        return 'transfer'
+    return None
+
+
+def get_ds000011_stage(task_name: str) -> str:
+    if 'Singletaskweatherprediction_run-01' in task_name:
+        return 'acquisition'
+    elif 'Singletaskweatherprediction_run-02' in task_name:
+        return 'consolidation'
+    elif 'Dualtaskweatherprediction' in task_name or 'tonecounting' in task_name:
+        return 'transfer'
+    return None
+
+
+def get_ds000017_stage(task_name: str) -> str:
+    if 'probabilisticclassification_run-01' in task_name:
+        return 'acquisition'
+    elif 'probabilisticclassification_run-02' in task_name:
+        return 'consolidation'
+    elif 'selectivestopsignaltask' in task_name:
+        if 'run-01' in task_name:
+            return 'acquisition'
+        elif 'run-02' in task_name:
+            return 'consolidation'
+        elif 'run-03' in task_name:
+            return 'transfer'
+    return None
+
+
+def get_ds000052_stage(task_name: str) -> str:
+    if 'weatherprediction_run-1' in task_name:
+        return 'acquisition'
+    elif 'weatherprediction_run-2' in task_name:
+        return 'consolidation'
+    elif 'reversalweatherprediction' in task_name:
+        return 'reversal'
+    return None
+
+
+def checkpoint_wrapper(function, *args, **kwargs):
+    """Wrapper for consistent checkpoint behavior"""
+    return torch.utils.checkpoint.checkpoint(
+        function,
+        *args,
+        use_reentrant=False,
+        preserve_rng_state=True,
+        **kwargs
+    )
+    
+
+def enable_memory_efficient_attention():
+    """Enable memory efficient attention settings"""
+    if hasattr(torch.nn.functional, 'scaled_dot_product_attention'):
+        torch.backends.cuda.enable_flash_sdp(True)
+        torch.backends.cuda.enable_mem_efficient_sdp(True)
+        torch.backends.cuda.enable_math_sdp(True)

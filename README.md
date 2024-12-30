@@ -6,10 +6,7 @@ Learned Spectrum
 <em>Towards Temporal Understanding in AI through fMRI Learning Stage Classification.</em>
 </p>
 
-**Copyright © 2024 Teddy Warner**
-> This work may be reproduced, modified, distributed, performed, and displayed for any purpose,
-> but must acknowledge Teddy Warner. Copyright is retained and must be preserved. 
-> The work is provided as is; no warranty is provided, and users accept all liability.
+Full project documention can be found on: [https://teddywarner.org/Projects/LearnedSpectrum/](https://teddywarner.org/Projects/LearnedSpectrum/)
 
 ## Usage
 
@@ -41,7 +38,7 @@ pip install -e .
 
 1. Create necessary directories and download datasets (automated):
 ```bash
-python scripts/data/download.py
+python scripts/download.py
 ```
 
 This script will:
@@ -69,7 +66,7 @@ data/
 Options:
 ```bash
 # Force redownload of datasets (if needed)
-python scripts/data/download.py --force
+python scripts/download.py --force
 ```
 
 ### Running the Analysis
@@ -81,19 +78,7 @@ jupyter notebook
 
 2. Navigate to `notebooks/learnedSpectrum.ipynb`
 
-3. The notebook is organized into clear sections:
-   - Setup and Imports
-   - Configuration
-   - Data Preparation
-   - Model Training
-   - Evaluation
-   - Results Visualization
-
-4. Execute cells sequentially to:
-   - Process the fMRI data
-   - Train the Vision Transformer model
-   - Visualize results and attention maps
-   - Generate performance metrics
+3. Execute cells sequentially
 
 ### Experiment Tracking
 
@@ -126,6 +111,11 @@ print(f"GPU device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() 
    - Verify dataset structure
    - Check preprocessing logs in `data/processed/logs/`
    - Ensure sufficient disk space
+
+**Copyright © 2024 Teddy Warner**
+> This work may be reproduced, modified, distributed, performed, and displayed for any purpose,
+> but must acknowledge Teddy Warner. Copyright is retained and must be preserved. 
+> The work is provided as is; no warranty is provided, and users accept all liability.
 
 ---
 - [Watch this repo](https://github.com/Twarner491/learnedSpectrum/subscription)

@@ -1,7 +1,3 @@
-"""
-LearnedSpectrum: fMRI Learning Stage Classification with Vision Transformers
-"""
-
 __version__ = "0.1.0"
 
 
@@ -13,17 +9,24 @@ from .data import (
     create_dataloaders
 )
 from .train import (
-    VisionTransformerModel,
     train_one_epoch,
-    evaluate
+    train_loop,
+    evaluate,
+    EarlyStopping
 )
-from .visualization import VisualizationManager
+from .models import (
+    VisionTransformerModel,
+    CustomChannelReduce,
+    ResidualBlock3d
+)
+from .visualization import TemporalUnderstandingVisualizer
 from .utils import (
     print_gpu_memory,
     get_optimizer,
     verify_model_devices,
     pretrain_transform,
-    mixup
+    mixup,
+    get_cosine_schedule_with_warmup
 )
 
 
@@ -35,12 +38,17 @@ __all__ = [
     'BIDSManager',
     'create_dataloaders',
     'VisionTransformerModel',
+    'CustomChannelReduce',
+    'ResidualBlock3d',
     'train_one_epoch',
+    'train_loop',
     'evaluate',
-    'VisualizationManager',
+    'EarlyStopping',
+    'TemporalUnderstandingVisualizer',
     'print_gpu_memory',
     'get_optimizer',
     'verify_model_devices',
     'pretrain_transform',
-    'mixup'
+    'mixup',
+    'get_cosine_schedule_with_warmup'
 ]
